@@ -96,10 +96,11 @@ boot_alloc(uint32_t n)
 	// Allocate a chunk large enough to hold 'n' bytes, then update
 	// nextfree.  Make sure nextfree is kept aligned
 	// to a multiple of PGSIZE.
-	//
-	// LAB 2: Your code here.
+    result = nextfree;
+    nextfree += n;
+    nextfree = ROUNDUP(nextfree, PGSIZE);
 
-	return NULL;
+	return result;
 }
 
 // Set up a two-level page table:
@@ -119,9 +120,6 @@ mem_init(void)
 
 	// Find out how much memory the machine has (npages & npages_basemem).
 	i386_detect_memory();
-
-	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -143,8 +141,9 @@ mem_init(void)
 	// each physical page, there is a corresponding struct PageInfo in this
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
-	// Your code goes here:
-
+    size_t page_array_size = npages * sizeof(struct PageInfo);
+    pages = boot_alloc(page_array_size);
+    memset(pages, 0, page_array_size);
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -230,8 +229,7 @@ mem_init(void)
 void
 page_init(void)
 {
-	// The example code here marks all physical pages as free.
-	// However this is not truly the case.  What memory is free?
+	// Marks usable physical pages as free.
 	//  1) Mark physical page 0 as in use.
 	//     This way we preserve the real-mode IDT and BIOS structures
 	//     in case we ever need them.  (Currently we don't, but...)
@@ -243,12 +241,18 @@ page_init(void)
 	//     Some of it is in use, some is free. Where is the kernel
 	//     in physical memory?  Which pages are already in use for
 	//     page tables and other data structures?
-	//
-	// Change the code to reflect this.
-	// NB: DO NOT actually touch the physical memory corresponding to
-	// free pages!
 	size_t i;
 	for (i = 0; i < npages; i++) {
+        // Check for pages in use. Don't add to page_free_list if so.
+        if (i == 0)
+            continue;
+        if (i * PGSIZE >= IOPHYSMEM && i * PGSIZE < EXTPHYSMEM)
+            continue;
+        if (i * PGSIZE >= EXTPHYSMEM && i * PGSIZE < PADDR(boot_alloc(0)))
+            continue;
+        if (i * PGSIZE >= UTOP)
+            continue;
+
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
@@ -266,12 +270,20 @@ page_init(void)
 //
 // Returns NULL if out of free memory.
 //
-// Hint: use page2kva and memset
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
-	// Fill this function in
-	return 0;
+    if (page_free_list == NULL)  // out of memory
+        return NULL;
+
+    struct PageInfo *page_info = page_free_list;
+    page_free_list = page_info->pp_link;
+    page_info->pp_link = NULL;
+
+    if (alloc_flags & ALLOC_ZERO)
+        memset(page2kva(page_info), 0, PGSIZE);
+
+	return page_info;
 }
 
 //
@@ -281,9 +293,11 @@ page_alloc(int alloc_flags)
 void
 page_free(struct PageInfo *pp)
 {
-	// Fill this function in
-	// Hint: You may want to panic if pp->pp_ref is nonzero or
-	// pp->pp_link is not NULL.
+    if (pp->pp_ref || pp->pp_link)
+        panic("Calling free() on invalid page!");
+
+    pp->pp_link = page_free_list;
+    page_free_list = pp;
 }
 
 //
