@@ -323,21 +323,25 @@ page_decref(struct PageInfo* pp)
 //	the page is cleared,
 //	and pgdir_walk returns a pointer into the new page table page.
 //
-// Hint 1: you can turn a Page * into the physical address of the
-// page it refers to with page2pa() from kern/pmap.h.
-//
-// Hint 2: the x86 MMU checks permission bits in both the page directory
-// and the page table, so it's safe to leave permissions in the page
-// directory more permissive than strictly necessary.
-//
-// Hint 3: look at inc/mmu.h for useful macros that mainipulate page
-// table and page directory entries.
-//
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-	// Fill this function in
-	return NULL;
+    uintptr_t *pde = &pgdir[PDX(va)];  // pointer to page directory entry
+
+    if (!(*pde & PTE_P)) {  // check if page is present
+        if (!create)
+            return NULL;
+
+        struct PageInfo *page_info = page_alloc(ALLOC_ZERO);
+        if (page_info == NULL)
+            return NULL;
+
+        page_info->pp_ref++;
+        *pde = page2pa(page_info) | PTE_P;
+    }
+
+    pte_t* kaddr = KADDR(PTE_ADDR(*pde));
+    return &kaddr[PTX(va)];  // pointer to page table entry
 }
 
 //
@@ -350,11 +354,14 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 // above UTOP. As such, it should *not* change the pp_ref field on the
 // mapped pages.
 //
-// Hint: the TA solution uses pgdir_walk
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-	// Fill this function in
+    int i;
+    for (i = 0; i < size; i += PGSIZE) {
+        pte_t *pte = pgdir_walk(pgdir, ((void*)va) + i, 1);
+        *pte = (pa + i) | perm | PTE_P;
+    }
 }
 
 //
@@ -369,23 +376,29 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 //   - pp->pp_ref should be incremented if the insertion succeeds.
 //   - The TLB must be invalidated if a page was formerly present at 'va'.
 //
-// Corner-case hint: Make sure to consider what happens when the same
-// pp is re-inserted at the same virtual address in the same pgdir.
-// However, try not to distinguish this case in your code, as this
-// frequently leads to subtle bugs; there's an elegant way to handle
-// everything in one code path.
-//
 // RETURNS:
 //   0 on success
 //   -E_NO_MEM, if page table couldn't be allocated
 //
-// Hint: The TA solution is implemented using pgdir_walk, page_remove,
-// and page2pa.
-//
 int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
-	// Fill this function in
+    pte_t *pte = pgdir_walk(pgdir, va, 1);
+    if (pte == NULL)
+        return -E_NO_MEM;
+
+    // increment pp_ref before page_remove(), so that we don't free
+    // a page when we insert it to the same mapped physical address
+    pp->pp_ref++;
+
+    if (*pte & PTE_P) {
+        page_remove(pgdir, va);
+        tlb_invalidate(pgdir, va);
+    }
+
+    *pte = page2pa(pp) | perm | PTE_P;
+    pgdir[PDX(va)] |= perm;
+
 	return 0;
 }
 
@@ -398,13 +411,18 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 //
 // Return NULL if there is no page mapped at va.
 //
-// Hint: the TA solution uses pgdir_walk and pa2page.
-//
 struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
-	// Fill this function in
-	return NULL;
+    pte_t *pte = pgdir_walk(pgdir, va, 0);
+
+    if (pte == NULL || !(*pte & PTE_P))
+        return NULL;
+
+    if (pte_store)
+        *pte_store = pte;
+
+    return pa2page(PTE_ADDR(*pte));
 }
 
 //
@@ -419,13 +437,19 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 //   - The TLB must be invalidated if you remove an entry from
 //     the page table.
 //
-// Hint: The TA solution is implemented using page_lookup,
-// 	tlb_invalidate, and page_decref.
-//
 void
 page_remove(pde_t *pgdir, void *va)
 {
-	// Fill this function in
+    pte_t *pte;
+    struct PageInfo *page_info = page_lookup(pgdir, va, &pte);
+    if (page_info == NULL)
+        return;
+
+    page_decref(page_info);
+    if (pte) {
+        *pte = 0;
+        tlb_invalidate(pgdir, va);
+    }
 }
 
 //
