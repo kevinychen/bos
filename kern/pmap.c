@@ -111,6 +111,20 @@ map_page(pde_t *pgdir, uintptr_t va, physaddr_t pa, int perm)
     pgdir[PDX(va)] |= perm;
 }
 
+static int
+is_pse_enabled()
+{
+    uint32_t eax, ebx, ecx, edx;
+    cpuid(1, &eax, &ebx, &ecx, &edx);
+    return edx & 0x8;  // pse enabled bit
+}
+
+static void
+map_big_page(pde_t *pgdir, uintptr_t va, physaddr_t pa, int perm)
+{
+    pgdir[PDX(va)] = pa | perm | PTE_PS | PTE_P;
+}
+
 // Set up a two-level page table:
 //    kern_pgdir is its linear (virtual) address of the root
 //
@@ -198,8 +212,14 @@ mem_init(void)
 	// We might not have 2^32 - KERNBASE bytes of physical memory, but
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
-    for (i = 0; i < -KERNBASE; i += PGSIZE)
-        map_page(kern_pgdir, KERNBASE + i, i, PTE_W);
+    if (is_pse_enabled()) {
+        lcr4(rcr4() | CR4_PSE);  // enable extended pages
+        for (i = 0; i < -KERNBASE; i += PTSIZE)
+            map_big_page(kern_pgdir, KERNBASE + i, i, PTE_W);
+    } else {
+        for (i = 0; i < -KERNBASE; i += PGSIZE)
+            map_page(kern_pgdir, KERNBASE + i, i, PTE_W);
+    }
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -680,6 +700,8 @@ check_va2pa(pde_t *pgdir, uintptr_t va)
 	pte_t *p;
 
 	pgdir = &pgdir[PDX(va)];
+    if (*pgdir & PTE_PS)  // check for extended page entry
+        return PTE_ADDR(*pgdir) | (PTX(va) << PGSHIFT);
 	if (!(*pgdir & PTE_P))
 		return ~0;
 	p = (pte_t*) KADDR(PTE_ADDR(*pgdir));
