@@ -88,4 +88,14 @@ page2kva(struct PageInfo *pp)
 
 pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create);
 
+static inline void
+map_page(pde_t *pgdir, uintptr_t va, physaddr_t pa, int perm)
+{
+    pte_t *pte = pgdir_walk(pgdir, (void*) va, 1);
+    if (pte == NULL)
+        panic("Out of memory");
+    *pte = pa | perm | PTE_P;
+    pgdir[PDX(va)] |= perm;
+}
+
 #endif /* !JOS_KERN_PMAP_H */
