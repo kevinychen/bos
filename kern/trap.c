@@ -58,13 +58,46 @@ static const char *trapname(int trapno)
 	return "(unknown trap)";
 }
 
+void trap_handler0(void);
+void trap_handler1(void);
+void trap_handler2(void);
+void trap_handler3(void);
+void trap_handler4(void);
+void trap_handler5(void);
+void trap_handler6(void);
+void trap_handler7(void);
+void trap_handler8(void);
+void trap_handler10(void);
+void trap_handler11(void);
+void trap_handler12(void);
+void trap_handler13(void);
+void trap_handler14(void);
+void trap_handler16(void);
+void trap_handler17(void);
+void trap_handler18(void);
+void trap_handler19(void);
+
+void (*trap_handlers[])(void) = {
+    trap_handler0, trap_handler1, trap_handler2, trap_handler3,
+    trap_handler4, trap_handler5, trap_handler6, trap_handler7,
+    trap_handler8, NULL, trap_handler10, trap_handler11,
+    trap_handler12, trap_handler13, trap_handler14, NULL,
+    trap_handler16, trap_handler17, trap_handler18, trap_handler19,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
+
 
 void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
 
-	// LAB 3: Your code here.
+    int i;
+    for (i = 0; i < 32; i++)
+        if (trap_handlers[i])
+            SETGATE(idt[i], 0, 1 << 3, trap_handlers[i], 0);
 
 	// Per-CPU setup 
 	trap_init_percpu();
