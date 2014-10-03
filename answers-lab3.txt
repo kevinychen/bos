@@ -1,0 +1,13 @@
+Question 1.
+===========
+
+If we have individual handler functions, then we can 1) choose different permissions to run each handler with and 2) have separate behavior for interrupts and exceptions (like interrupts preventing other interrupts).
+
+
+Question 2.
+===========
+
+I didn't have to do anything special. Error code 13 was produced because int $14 is a privileged instruction that cannot be called from user space. If the kernel did allow the user to call int $14, then that will cause problems because the handler for a page fault expects an error code with information about which page was badly accessed.
+
+In general, according to the principle of least permissions we should prevent the user from being able to execute instructions like int $14. Other problems may occur otherwise; there may be other int instructions that no interrupt handler, or the machine probably doesn't want the user to be able to throw errors arbitrarily.
+
