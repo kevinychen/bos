@@ -61,6 +61,7 @@ TRAPHANDLER_NOEC(trap_handler16, T_FPERR)
 TRAPHANDLER_NOEC(trap_handler17, T_ALIGN)
 TRAPHANDLER_NOEC(trap_handler18, T_MCHK)
 TRAPHANDLER_NOEC(trap_handler19, T_SIMDERR)
+TRAPHANDLER_NOEC(trap_handler48, T_SYSCALL)
 
 _alltraps:
     push %ds

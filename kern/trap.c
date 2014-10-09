@@ -76,6 +76,7 @@ void trap_handler16(void);
 void trap_handler17(void);
 void trap_handler18(void);
 void trap_handler19(void);
+void trap_handler48(void);
 
 void (*trap_handlers[])(void) = {
     trap_handler0, trap_handler1, trap_handler2, trap_handler3,
@@ -99,6 +100,7 @@ trap_init(void)
         if (trap_handlers[i])
             SETGATE(idt[i], 0, 1 << 3, trap_handlers[i], 0);
     SETGATE(idt[3], 0, 1 << 3, trap_handler3, 3);
+    SETGATE(idt[48], 0, 1 << 3, trap_handler48, 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -181,6 +183,14 @@ trap_dispatch(struct Trapframe *tf)
         return;
     } else if (tf->tf_trapno == T_BRKPT) {
         monitor(tf);
+        return;
+    } else if (tf->tf_trapno == T_SYSCALL) {
+        tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax,
+                tf->tf_regs.reg_edx,
+                tf->tf_regs.reg_ecx,
+                tf->tf_regs.reg_ebx,
+                tf->tf_regs.reg_edi,
+                tf->tf_regs.reg_esi);
         return;
     }
 
