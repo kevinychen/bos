@@ -178,32 +178,32 @@ static void
 trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
-    if (tf->tf_trapno == T_PGFLT) {
-        if (((tf->tf_cs) & 3) == 0)
-            panic("Page fault in kernel");
-        page_fault_handler(tf);
-        return;
-    } else if (tf->tf_trapno == T_BRKPT) {
-        monitor(tf);
-        return;
-    } else if (tf->tf_trapno == T_SYSCALL) {
-        tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax,
-                tf->tf_regs.reg_edx,
-                tf->tf_regs.reg_ecx,
-                tf->tf_regs.reg_ebx,
-                tf->tf_regs.reg_edi,
-                tf->tf_regs.reg_esi);
-        return;
+    switch (tf->tf_trapno) {
+        case T_DEBUG:
+        case T_BRKPT:
+            monitor(tf);
+            break;
+        case T_PGFLT:
+            if (((tf->tf_cs) & 3) == 0)
+                panic("Page fault in kernel");
+            page_fault_handler(tf);
+            break;
+        case T_SYSCALL:
+            tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax,
+                    tf->tf_regs.reg_edx,
+                    tf->tf_regs.reg_ecx,
+                    tf->tf_regs.reg_ebx,
+                    tf->tf_regs.reg_edi,
+                    tf->tf_regs.reg_esi);
+            break;
+        default:
+            // Unexpected trap: The user process or the kernel has a bug.
+            print_trapframe(tf);
+            if (tf->tf_cs == GD_KT)
+                panic("unhandled trap in kernel");
+            else
+                env_destroy(curenv);
     }
-
-	// Unexpected trap: The user process or the kernel has a bug.
-	print_trapframe(tf);
-	if (tf->tf_cs == GD_KT)
-		panic("unhandled trap in kernel");
-	else {
-		env_destroy(curenv);
-		return;
-	}
 }
 
 void
