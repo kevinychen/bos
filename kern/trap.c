@@ -179,6 +179,8 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
     if (tf->tf_trapno == T_PGFLT) {
+        if (((tf->tf_cs) & 3) == 0)
+            panic("Page fault in kernel");
         page_fault_handler(tf);
         return;
     } else if (tf->tf_trapno == T_BRKPT) {
