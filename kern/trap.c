@@ -98,6 +98,7 @@ trap_init(void)
     for (i = 0; i < 32; i++)
         if (trap_handlers[i])
             SETGATE(idt[i], 0, 1 << 3, trap_handlers[i], 0);
+    SETGATE(idt[3], 0, 1 << 3, trap_handler3, 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -177,6 +178,9 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle processor exceptions.
     if (tf->tf_trapno == T_PGFLT) {
         page_fault_handler(tf);
+        return;
+    } else if (tf->tf_trapno == T_BRKPT) {
+        monitor(tf);
         return;
     }
 
