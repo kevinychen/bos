@@ -278,10 +278,6 @@ mem_init_mp(void)
 void
 page_init(void)
 {
-	// LAB 4:
-	// Change your code to mark the physical page at MPENTRY_PADDR
-	// as in use
-
 	// Marks usable physical pages as free.
 	//  1) Mark physical page 0 as in use.
 	//     This way we preserve the real-mode IDT and BIOS structures
@@ -304,6 +300,8 @@ page_init(void)
         if (i * PGSIZE >= EXTPHYSMEM && i * PGSIZE < PADDR(boot_alloc(0)))
             continue;
         if (i * PGSIZE >= UTOP)
+            continue;
+        if (i * PGSIZE == MPENTRY_PADDR)  // AP bootstrap code location
             continue;
 
 		pages[i].pp_ref = 0;
