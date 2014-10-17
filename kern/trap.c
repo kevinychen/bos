@@ -65,13 +65,49 @@ static const char *trapname(int trapno)
 	return "(unknown trap)";
 }
 
+void trap_handler0(void);
+void trap_handler1(void);
+void trap_handler2(void);
+void trap_handler3(void);
+void trap_handler4(void);
+void trap_handler5(void);
+void trap_handler6(void);
+void trap_handler7(void);
+void trap_handler8(void);
+void trap_handler10(void);
+void trap_handler11(void);
+void trap_handler12(void);
+void trap_handler13(void);
+void trap_handler14(void);
+void trap_handler16(void);
+void trap_handler17(void);
+void trap_handler18(void);
+void trap_handler19(void);
+void trap_handler48(void);
+
+void (*trap_handlers[])(void) = {
+    trap_handler0, trap_handler1, trap_handler2, trap_handler3,
+    trap_handler4, trap_handler5, trap_handler6, trap_handler7,
+    trap_handler8, NULL, trap_handler10, trap_handler11,
+    trap_handler12, trap_handler13, trap_handler14, NULL,
+    trap_handler16, trap_handler17, trap_handler18, trap_handler19,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
+
 
 void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
 
-	// LAB 3: Your code here.
+    int i;
+    for (i = 0; i < 32; i++)
+        if (trap_handlers[i])
+            SETGATE(idt[i], 0, 1 << 3, trap_handlers[i], 0);
+    SETGATE(idt[3], 0, 1 << 3, trap_handler3, 3);
+    SETGATE(idt[48], 0, 1 << 3, trap_handler48, 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -172,29 +208,44 @@ static void
 trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
-	// LAB 3: Your code here.
+    switch (tf->tf_trapno) {
+        case T_DEBUG:
+        case T_BRKPT:
+            monitor(tf);
+            break;
+        case T_PGFLT:
+            if (((tf->tf_cs) & 3) == 0)
+                panic("Page fault in kernel");
+            page_fault_handler(tf);
+            break;
+        case T_SYSCALL:
+            tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax,
+                    tf->tf_regs.reg_edx,
+                    tf->tf_regs.reg_ecx,
+                    tf->tf_regs.reg_ebx,
+                    tf->tf_regs.reg_edi,
+                    tf->tf_regs.reg_esi);
+            break;
+        case IRQ_OFFSET + IRQ_SPURIOUS:
+            // Handle spurious interrupts
+            // The hardware sometimes raises these because of noise on the
+            // IRQ line or other reasons. We don't care.
+            cprintf("Spurious interrupt on irq 7\n");
+            print_trapframe(tf);
+            break;
 
-	// Handle spurious interrupts
-	// The hardware sometimes raises these because of noise on the
-	// IRQ line or other reasons. We don't care.
-	if (tf->tf_trapno == IRQ_OFFSET + IRQ_SPURIOUS) {
-		cprintf("Spurious interrupt on irq 7\n");
-		print_trapframe(tf);
-		return;
-	}
+            // Handle clock interrupts. Don't forget to acknowledge the
+            // interrupt using lapic_eoi() before calling the scheduler!
+            // LAB 4: Your code here.
 
-	// Handle clock interrupts. Don't forget to acknowledge the
-	// interrupt using lapic_eoi() before calling the scheduler!
-	// LAB 4: Your code here.
-
-	// Unexpected trap: The user process or the kernel has a bug.
-	print_trapframe(tf);
-	if (tf->tf_cs == GD_KT)
-		panic("unhandled trap in kernel");
-	else {
-		env_destroy(curenv);
-		return;
-	}
+        default:
+            // Unexpected trap: The user process or the kernel has a bug.
+            print_trapframe(tf);
+            if (tf->tf_cs == GD_KT)
+                panic("unhandled trap in kernel");
+            else
+                env_destroy(curenv);
+    }
 }
 
 void

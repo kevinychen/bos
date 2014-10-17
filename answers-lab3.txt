@@ -1,0 +1,35 @@
+Question 1.
+===========
+
+If we have individual handler functions, then we can 1) choose different permissions to run each handler with and 2) have separate behavior for interrupts and exceptions (like interrupts preventing other interrupts).
+
+
+Question 2.
+===========
+
+I didn't have to do anything special. Error code 13 was produced because int $14 is a privileged instruction that cannot be called from user space. If the kernel did allow the user to call int $14, then that will cause problems because the handler for a page fault expects an error code with information about which page was badly accessed.
+
+In general, according to the principle of least permissions we should prevent the user from being able to execute instructions like int $14. Other problems may occur otherwise; there may be other int instructions that no interrupt handler, or the machine probably doesn't want the user to be able to throw errors arbitrarily.
+
+
+Question 3.
+===========
+
+For the IDT entry corresponding to trapno = T_BRKPT = 3, we need to set the DPL field to USER (3). Otherwise if DPL = 0, the user space is not allowed to execute such an int instruction, and a general protection fault will be triggered.
+
+
+Question 4.
+===========
+
+Again, the point of the mechanisms are so that users can not execute arbitrary int instructions, causing sporadic interrupts or even generating interrupts without pushing the proper error code parameters (like the incorrectly accessed page) onto the stack.
+
+
+Challenge!
+==========
+
+I added two additional methods to the kernel monitor for debugging - continue and step.
+
+The step command will set the TF bit in eflags, which will cause the hardware to generate a int 1 interrupt after every instruction. Therefore, when I catch int 1 interrupts, I start the monitor again.
+
+The continue command toggles the TF bit off, and then continues the current environment normally.
+
