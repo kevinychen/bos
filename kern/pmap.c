@@ -258,9 +258,13 @@ mem_init_mp(void)
 	//             it will fault rather than overwrite another CPU's stack.
 	//             Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
-	//
-	// LAB 4: Your code here:
-
+    uintptr_t va = KSTACKTOP;
+    int i;
+	for (i = 0; i < NCPU; i++) {
+        va -= KSTKSIZE;
+        boot_map_region(kern_pgdir, va, KSTKSIZE, PADDR(&percpu_kstacks[i]), PTE_W);
+        va -= KSTKGAP;
+    }
 }
 
 // --------------------------------------------------------------
