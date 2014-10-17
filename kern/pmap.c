@@ -392,7 +392,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
             return NULL;
 
         page_info->pp_ref++;
-        *pde = page2pa(page_info) | PTE_P;
+        *pde = page2pa(page_info) | PTE_W | PTE_P;
     }
 
     pte_t* kaddr = KADDR(PTE_ADDR(*pde));
