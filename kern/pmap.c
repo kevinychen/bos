@@ -546,10 +546,14 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// handle if this reservation would overflow MMIOLIM (it's
 	// okay to simply panic if this happens).
 	//
-	// Hint: The staff solution uses boot_map_region.
-	//
-	// Your code here:
-	panic("mmio_map_region not implemented");
+    if (base + size > MMIOLIM)
+        panic("No more memory in MMIO region.");
+
+    size = ROUNDUP(size, PGSIZE);
+    boot_map_region(kern_pgdir, base, size, pa, PTE_PCD | PTE_PWT | PTE_W);
+    void *prev_base = (void*) base;
+    base += size;
+    return prev_base;
 }
 
 static uintptr_t user_mem_check_addr;
