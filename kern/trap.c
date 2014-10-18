@@ -106,8 +106,8 @@ trap_init(void)
     for (i = 0; i < 32; i++)
         if (trap_handlers[i])
             SETGATE(idt[i], 0, 1 << 3, trap_handlers[i], 0);
-    SETGATE(idt[3], 0, 1 << 3, trap_handler3, 3);
-    SETGATE(idt[48], 0, 1 << 3, trap_handler48, 3);
+    SETGATE(idt[3], 1, 1 << 3, trap_handler3, 3);
+    SETGATE(idt[48], 1, 1 << 3, trap_handler48, 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();

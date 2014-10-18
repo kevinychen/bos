@@ -27,8 +27,17 @@ sched_yield(void)
 	// another CPU (env_status == ENV_RUNNING). If there are
 	// no runnable environments, simply drop through to the code
 	// below to halt the cpu.
-
-	// LAB 4: Your code here.
+    struct Env *base = curenv ? curenv : envs - 1, *next_env = base;
+    int first = true;
+    while (next_env++ != base || first) {
+        first = false;
+        if (next_env == envs + NENV)
+            next_env = envs - 1;
+        else if (next_env->env_status == ENV_RUNNABLE)
+            env_run(next_env);
+    }
+    if (curenv && curenv->env_status == ENV_RUNNING)
+        env_run(curenv);
 
 	// sched_halt never returns
 	sched_halt();
