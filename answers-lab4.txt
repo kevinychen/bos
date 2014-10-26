@@ -1,0 +1,22 @@
+Question 1.
+===========
+
+At the point that the code in kern/mpentry.S is linked, the addresses that the code will be loaded are unknown, and therefore we need the specific variable MPBOOTPHYS.
+
+
+Question 2.
+===========
+
+There is a window between when the kernel has to release the lock and when it pops the user environment registers off its own stack. If another CPU acquires the lock and pushes its own data before the first CPU pops off the user environment registers, then the wrong user environment registers will be popped.
+
+
+Question 3.
+===========
+
+The user environment and kernel have the same page mappings above UTOP.
+
+
+Question 4.
+===========
+
+The switching happens when the user registers are pushed in trap() and popped in env_run(). This is required because the kernel cannot use the user registers for safety reasons, and it must save them so that the user environment will be in the same state when it resumes.
