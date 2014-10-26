@@ -276,6 +276,7 @@ region_alloc(struct Env *e, void *va, size_t len)
         if (p == NULL)
             panic("Out of memory");
         map_page(e->env_pgdir, i, page2pa(p), PTE_W | PTE_U);
+        p->pp_ref++;
     }
 }
 
