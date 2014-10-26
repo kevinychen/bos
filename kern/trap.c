@@ -194,8 +194,6 @@ trap_dispatch(struct Trapframe *tf)
             monitor(tf);
             break;
         case T_PGFLT:
-            if (((tf->tf_cs) & 3) == 0)
-                panic("Page fault in kernel");
             page_fault_handler(tf);
             break;
         case T_SYSCALL:
@@ -297,8 +295,8 @@ page_fault_handler(struct Trapframe *tf)
 	fault_va = rcr2();
 
 	// Handle kernel-mode page faults.
-
-	// LAB 3: Your code here.
+    if (((tf->tf_cs) & 3) == 0)
+        panic("Page fault in kernel");
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
@@ -325,13 +323,33 @@ page_fault_handler(struct Trapframe *tf)
 	// Note that the grade script assumes you will first check for the page
 	// fault upcall and print the "user fault va" message below if there is
 	// none.  The remaining three checks can be combined into a single test.
-	//
-	// Hints:
-	//   user_mem_assert() and env_run() are useful here.
-	//   To change what the user environment runs, modify 'curenv->env_tf'
-	//   (the 'tf' variable points at 'curenv->env_tf').
+    if (curenv->env_pgfault_upcall) {
+        // Find user exception stack
+        struct UTrapframe *user_tf;
+        if (tf->tf_esp >= UXSTACKTOP - PGSIZE && tf->tf_esp < UXSTACKTOP)
+            user_tf = ((struct UTrapframe*) (tf->tf_esp - 4));
+        else
+            user_tf = ((struct UTrapframe*) UXSTACKTOP);
+        user_tf--;
 
-	// LAB 4: Your code here.
+        user_mem_assert(curenv, user_tf, sizeof(struct UTrapframe), PTE_W);
+
+        // Fill user trap frame
+        lcr3(PADDR(curenv->env_pgdir));
+        user_tf->utf_fault_va = fault_va;
+        user_tf->utf_err = tf->tf_err;
+        user_tf->utf_regs = tf->tf_regs;
+        user_tf->utf_eip = tf->tf_eip;
+        user_tf->utf_eflags = tf->tf_eflags;
+        user_tf->utf_esp = tf->tf_esp;
+        lcr3(PADDR(kern_pgdir));
+
+        // Set user handler registers
+        tf->tf_eip = (uintptr_t) curenv->env_pgfault_upcall;
+        tf->tf_esp = (uintptr_t) user_tf;
+
+        env_run(curenv);
+    }
 
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
