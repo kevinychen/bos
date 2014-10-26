@@ -58,25 +58,14 @@ _pgfault_upcall:
 	//   In the case of a recursive fault on the exception stack,
 	//   note that the word we're pushing now will fit in the
 	//   blank word that the kernel reserved for us.
-	//
-	// Throughout the remaining code, think carefully about what
-	// registers are available for intermediate calculations.  You
-	// may find that you have to rearrange your code in non-obvious
-	// ways as registers become unavailable as scratch space.
-	//
-	// LAB 4: Your code here.
-
-	// Restore the trap-time registers.  After you do this, you
-	// can no longer modify any general-purpose registers.
-	// LAB 4: Your code here.
-
-	// Restore eflags from the stack.  After you do this, you can
-	// no longer use arithmetic operations or anything else that
-	// modifies eflags.
-	// LAB 4: Your code here.
-
-	// Switch back to the adjusted trap-time stack.
-	// LAB 4: Your code here.
-
-	// Return to re-execute the instruction that faulted.
-	// LAB 4: Your code here.
+    movl %esp, %eax
+    movl 0x30(%eax), %esp
+    push 0x28(%eax)
+    movl %esp, 0x30(%eax)
+    movl %eax, %esp
+    addl $8, %esp
+    popal
+    addl $4, %esp
+    popfl
+	pop %esp
+	ret
