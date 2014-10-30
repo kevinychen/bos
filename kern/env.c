@@ -172,11 +172,8 @@ env_setup_vm(struct Env *e)
 
 	// Now, set e->env_pgdir and initialize the page directory.
     e->env_pgdir = page2kva(p);
-    for (i = 0; i < -UTOP; i += PGSIZE) {
-        pte_t *pte = pgdir_walk(kern_pgdir, (void*) (UTOP + i), 0);
-        if (pte && (*pte & PTE_P))
-            map_page(e->env_pgdir, UTOP + i, PTE_ADDR(*pte), PGOFF(*pte));
-    }
+    for (i = 0; i < PGSIZE / sizeof(pde_t); i++)
+        e->env_pgdir[i] = kern_pgdir[i];
     p->pp_ref++;
 
 	// UVPT maps the env's own page table read-only.
