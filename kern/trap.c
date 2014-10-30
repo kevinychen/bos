@@ -83,6 +83,22 @@ void trap_handler16(void);
 void trap_handler17(void);
 void trap_handler18(void);
 void trap_handler19(void);
+void trap_handler32(void);
+void trap_handler33(void);
+void trap_handler34(void);
+void trap_handler35(void);
+void trap_handler36(void);
+void trap_handler37(void);
+void trap_handler38(void);
+void trap_handler39(void);
+void trap_handler40(void);
+void trap_handler41(void);
+void trap_handler42(void);
+void trap_handler43(void);
+void trap_handler44(void);
+void trap_handler45(void);
+void trap_handler46(void);
+void trap_handler47(void);
 void trap_handler48(void);
 
 void (*trap_handlers[])(void) = {
@@ -94,6 +110,10 @@ void (*trap_handlers[])(void) = {
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
+    trap_handler32, trap_handler33, trap_handler34, trap_handler35,
+    trap_handler36, trap_handler37, trap_handler38, trap_handler39,
+    trap_handler40, trap_handler41, trap_handler42, trap_handler43,
+    trap_handler44, trap_handler45, trap_handler46, trap_handler47,
 };
 
 
@@ -106,8 +126,10 @@ trap_init(void)
     for (i = 0; i < 32; i++)
         if (trap_handlers[i])
             SETGATE(idt[i], 0, 1 << 3, trap_handlers[i], 0);
-    SETGATE(idt[3], 1, 1 << 3, trap_handler3, 3);
-    SETGATE(idt[48], 1, 1 << 3, trap_handler48, 3);
+    for (i = IRQ_OFFSET; i < IRQ_OFFSET + 16; i++)
+        SETGATE(idt[i], 0, 1 << 3, trap_handlers[i], 3);
+    SETGATE(idt[3], 0, 1 << 3, trap_handler3, 3);
+    SETGATE(idt[48], 0, 1 << 3, trap_handler48, 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -215,7 +237,6 @@ trap_dispatch(struct Trapframe *tf)
             // Handle clock interrupts. Don't forget to acknowledge the
             // interrupt using lapic_eoi() before calling the scheduler!
             // LAB 4: Your code here.
-
         default:
             // Unexpected trap: The user process or the kernel has a bug.
             print_trapframe(tf);
