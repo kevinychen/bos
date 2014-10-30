@@ -226,6 +226,11 @@ trap_dispatch(struct Trapframe *tf)
                     tf->tf_regs.reg_edi,
                     tf->tf_regs.reg_esi);
             break;
+        case IRQ_OFFSET + IRQ_TIMER:
+            // Handle clock interrupts.
+            lapic_eoi();
+            sched_yield();
+            break;
         case IRQ_OFFSET + IRQ_SPURIOUS:
             // Handle spurious interrupts
             // The hardware sometimes raises these because of noise on the
@@ -233,10 +238,6 @@ trap_dispatch(struct Trapframe *tf)
             cprintf("Spurious interrupt on irq 7\n");
             print_trapframe(tf);
             break;
-
-            // Handle clock interrupts. Don't forget to acknowledge the
-            // interrupt using lapic_eoi() before calling the scheduler!
-            // LAB 4: Your code here.
         default:
             // Unexpected trap: The user process or the kernel has a bug.
             print_trapframe(tf);
