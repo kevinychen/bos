@@ -13,7 +13,7 @@ umain(int argc, char **argv)
 
 	if (thisenv == &envs[1]) {
 		while (1) {
-			ipc_recv(&who, 0, 0);
+			ipc_recv(&who, 0, 0, 0);
 			cprintf("%x recv from %x\n", id, who);
 		}
 	} else {

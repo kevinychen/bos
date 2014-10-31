@@ -14,12 +14,12 @@
 //	they're nonnull) and return the error.
 // Otherwise, return the value sent by the sender
 int32_t
-ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
+ipc_recv(envid_t *from_env_store, void *pg, int *perm_store, envid_t srcenv)
 {
     if (pg == NULL)
         pg = (void*) UTOP;  // an invalid address
 
-    int result = sys_ipc_recv(pg);
+    int result = sys_ipc_recv(pg, srcenv);
     if (result < 0) {
         if (from_env_store)
             *from_env_store = 0;

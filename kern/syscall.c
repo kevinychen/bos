@@ -278,6 +278,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
         return -E_BAD_ENV;
     if (!dstenv->env_ipc_recving)
         return -E_IPC_NOT_RECV;
+    if (dstenv->env_ipc_srcenv && dstenv->env_ipc_srcenv != curenv->env_id)
+        return -E_IPC_NOT_RECV;
 
     bool pageTransferred = false;
     if (srcva < (void*) UTOP) {
@@ -318,13 +320,14 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 //
 // If 'dstva' is < UTOP, then you are willing to receive a page of data.
 // 'dstva' is the virtual address at which the sent page should be mapped.
+// If srcenv is nonzero, then you will only receive from that environment.
 //
 // This function only returns on error, but the system call will eventually
 // return 0 on success.
 // Return < 0 on error.  Errors are:
 //	-E_INVAL if dstva < UTOP but dstva is not page-aligned.
 static int
-sys_ipc_recv(void *dstva)
+sys_ipc_recv(void *dstva, envid_t srcenv)
 {
     if (dstva < (void*) UTOP) {
         if (ROUNDDOWN(dstva, PGSIZE) != dstva)
@@ -334,6 +337,7 @@ sys_ipc_recv(void *dstva)
     }
     curenv->env_ipc_recving = true;
     curenv->env_status = ENV_NOT_RUNNABLE;
+    curenv->env_ipc_srcenv = srcenv;
     sched_yield();
 }
 
@@ -371,7 +375,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
             return sys_ipc_try_send((envid_t) a1, (uint32_t) a2,
                     (void*) a3, (unsigned) a4);
         case SYS_ipc_recv:
-            sys_ipc_recv((void*) a1);  // does not return
+            sys_ipc_recv((void*) a1, (envid_t) a2);  // does not return
         default:
             return -E_NO_SYS;
 	}
