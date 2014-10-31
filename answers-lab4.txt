@@ -20,3 +20,27 @@ Question 4.
 ===========
 
 The switching happens when the user registers are pushed in trap() and popped in env_run(). This is required because the kernel cannot use the user registers for safety reasons, and it must save them so that the user environment will be in the same state when it resumes.
+
+
+Challenge!
+==========
+
+I wrote a power series calculator with message passing, as described in "Squinting at Power Series" by M. Douglas McIlroy, and used it to calculate the power series expansion of sin(x + x^3).
+
+Power series are represented as a stream of power series coefficients, which I implemented as reduced fractions. Fractions give a more informative power series representation than decimal approximations. Unfortunately, the numerators and denominators of the fractions quickly overflow, but this code can be easily extended to use big integer representations.
+
+The main weakness of the lab IPC system is that an environment cannot control which environments it receives messages from. This is a problem if we want to add two power series for example; one stream must take a single value from each of its input streams. But if the same input stream sends multiple values, the receiving stream must buffer the values while waiting for a value from the other input stream. However, buffering defeats the beauty of stream design, so I avoided it.
+
+Instead, I added a new envid_t parameter to the ipc_recv method. If the parameter is specified, then the receiving environment will only accept a message from an environment with the specified envid_t. This is enforced in the implementation of the send and recv system calls.
+
+When an stream wants to output a value, it must broadcast the value and specify how many receivers it expects. This is the only way to ensure that no receivers miss values. Generally, the number of expected receivers is obvious. Since the sender blocks until all its messages are successfully sent, this ensures that no messages are missed.
+
+I implemented many functions for computing power series (some of them not required for sin), including addition, multiplication, differentiation, integration, and exponentiation, whose methods I took from McIlroy's paper.
+
+To compute the sin of a power series, I used the fact that sin and cos are derivatives of each other. So if X = sin(F) and Y = cos(F), then
+
+X' = F' cos F and Y' = F' sin F
+=> X = INT[ F' Y ] and Y = INT[ F' X ]
+
+I used 0 and 1 for the constants of integration respectively (to give the canonical power series for sin(F) when F = x). Then I apply recursive calls to compute the coefficients for the power series one by one. See the code at user/series.c.
+
