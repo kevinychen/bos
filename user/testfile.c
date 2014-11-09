@@ -15,7 +15,7 @@ xopen(const char *path, int mode)
 
 	fsenv = ipc_find_env(ENV_TYPE_FS);
 	ipc_send(fsenv, FSREQ_OPEN, &fsipcbuf, PTE_P | PTE_W | PTE_U);
-	return ipc_recv(NULL, FVA, NULL);
+	return ipc_recv(NULL, FVA, NULL, 0);
 }
 
 void

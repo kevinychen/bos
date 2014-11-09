@@ -66,6 +66,7 @@ struct Env {
 	uint32_t env_ipc_value;		// Data value sent to us
 	envid_t env_ipc_from;		// envid of the sender
 	int env_ipc_perm;		// Perm of page mapping received
+    envid_t env_ipc_srcenv;     // desired env to receive from (0 if any)
 };
 
 #endif // !JOS_INC_ENV_H
