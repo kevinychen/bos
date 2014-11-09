@@ -238,8 +238,18 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 	if (debug)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
-	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+    struct OpenFile *o;
+    int result = openfile_lookup(envid, req->req_fileid, &o);
+    if (result < 0)
+        return result;
+
+    int bytes_written = file_write(
+            o->o_file, req->req_buf, req->req_n, o->o_fd->fd_offset);
+    if (bytes_written < 0)
+        return bytes_written;
+
+    o->o_fd->fd_offset += bytes_written;
+    return bytes_written;
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
