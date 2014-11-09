@@ -231,10 +231,16 @@ trap_dispatch(struct Trapframe *tf)
             lapic_eoi();
             sched_yield();
             break;
-
-	// Handle keyboard and serial interrupts.
-	// LAB 5: Your code here.
-
+        case IRQ_OFFSET + IRQ_KBD:
+            // Handle keyboard intterupts.
+            lapic_eoi();
+            kbd_intr();
+            break;
+        case IRQ_OFFSET + IRQ_SERIAL:
+            // Handle serial interrupts.
+            lapic_eoi();
+            serial_intr();
+            break;
         case IRQ_OFFSET + IRQ_SPURIOUS:
             // Handle spurious interrupts
             // The hardware sometimes raises these because of noise on the
