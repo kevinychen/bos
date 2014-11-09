@@ -50,7 +50,7 @@ static int
 duppage(envid_t envid, unsigned pn)
 {
     int perm = (PGOFF(uvpt[pn]) & PTE_SYSCALL);
-    if (perm & PTE_W)
+    if (!(perm & PTE_SHARE) && (perm & PTE_W))
         perm = (perm & ~PTE_W) | PTE_COW;
     void *va = (void*) (pn * PGSIZE);
     int r;
