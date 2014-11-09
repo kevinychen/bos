@@ -1,0 +1,5 @@
+Question 1.
+===========
+
+No, I do not have to do anything else to save and restore the privilege setting. The eflags registers are automatically saved into the environment's trap frame when the trap handler is evoked. When returning to the environment, the env_pop_tf() function automatically restores the saved eflags registers.
+
