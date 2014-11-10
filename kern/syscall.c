@@ -126,6 +126,35 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
     return 0;
 }
 
+// Set all registers/data for curenv to those of envid.
+// Frees all data associated with envid and destroys it.
+//
+// This function only returns on error. Errors are:
+//  -E_BAD_ENV if environment envid doesn't currently exist,
+//      or the caller doesn't have permission to change envid.
+//  -E_INVAL if environment envid has already been run.
+static int
+sys_env_convert(envid_t envid)
+{
+    struct Env *env_store;
+    if (envid2env(envid, &env_store, 1) < 0)
+        return -E_BAD_ENV;
+
+    if (env_store->env_runs > 0)
+        return -E_INVAL;
+
+    curenv->env_tf = env_store->env_tf;
+
+    // Swap the page directories of curenv and env_id, so that
+    // when we destroy env_id we free all of curenv's page tables.
+    pde_t *temp_pgdir = curenv->env_pgdir;
+    curenv->env_pgdir = env_store->env_pgdir;
+    env_store->env_pgdir = temp_pgdir;
+
+    env_destroy(env_store);
+    sched_yield();
+}
+
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
 // Env's 'env_pgfault_upcall' field.  When 'envid' causes a page fault, the
 // kernel will push a fault record onto the exception stack, then branch to
@@ -385,6 +414,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
             return sys_env_set_status((envid_t) a1, (int) a2);
         case SYS_env_set_trapframe:
             return sys_env_set_trapframe((envid_t) a1, (struct Trapframe*) a2);
+        case SYS_env_convert:
+            return sys_env_convert((envid_t) a1);
         case SYS_env_set_pgfault_upcall:
             return sys_env_set_pgfault_upcall((envid_t) a1, (void*) a2);
         case SYS_yield:
