@@ -229,6 +229,8 @@ trap_dispatch(struct Trapframe *tf)
             break;
         case IRQ_OFFSET + IRQ_TIMER:
             // Handle clock interrupts.
+            if (cpunum() == 0)
+                time_tick();
             lapic_eoi();
             sched_yield();
             break;
@@ -242,12 +244,6 @@ trap_dispatch(struct Trapframe *tf)
             lapic_eoi();
             serial_intr();
             break;
-
-	// Add time tick increment to clock interrupts.
-	// Be careful! In multiprocessors, clock interrupts are
-	// triggered on every CPU.
-	// LAB 6: Your code here.
-
         case IRQ_OFFSET + IRQ_SPURIOUS:
             // Handle spurious interrupts
             // The hardware sometimes raises these because of noise on the

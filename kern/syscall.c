@@ -391,8 +391,7 @@ sys_ipc_recv(void *dstva, envid_t srcenv)
 static int
 sys_time_msec(void)
 {
-	// LAB 6: Your code here.
-	panic("sys_time_msec not implemented");
+    return time_msec();
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -434,6 +433,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
                     (void*) a3, (unsigned) a4);
         case SYS_ipc_recv:
             sys_ipc_recv((void*) a1, (envid_t) a2);  // does not return
+        case SYS_time_msec:
+            return sys_time_msec();
         default:
             return -E_INVAL;
 	}
