@@ -18,7 +18,7 @@ timer(envid_t ns_envid, uint32_t initial_to) {
 
 		while (1) {
 			uint32_t to, whom;
-			to = ipc_recv((int32_t *) &whom, 0, 0);
+			to = ipc_recv((int32_t *) &whom, 0, 0, 0);
 
 			if (whom != ns_envid) {
 				cprintf("NS TIMER: timer thread got IPC message from env %x not NS\n", whom);

@@ -1,0 +1,55 @@
+Question 1.
+===========
+
+The variable x should be of type uintptr_t; the value pointer is being dereferenced normally, as a virtual address.
+
+
+Question 2.
+===========
+
+Entry   Base Virtual Address    Points to (logically)
+-----------------------------------------------------
+1023    0xFFC00000              kernel memory
+...     ...                     kernel memory
+960     0xF0000000 (KERNBASE)   kernel memory
+959     0xEFC00000 (KSTACKTOP)  kernel stack
+...     ...                     unused
+956     0xEF000000 (UPAGES)     pages (array of PageInfos)
+...     ...                     unused
+
+
+Question 3.
+===========
+
+The only virtual addresses that map to kernel memory is KERNBASE - 2^32, which are all protected with the PTE_U bit set to zero. In a sense, virtual memory _is_ the mechanism that protects the kernel memory.
+
+
+Question 4.
+===========
+
+All the physical memory must be mapped from the virtual addresses that the kernel can access, which is KERNBASE - 2^32 = 256MB.
+
+
+Question 5.
+===========
+
+About 128KB = 32 pages are used to store the PageInfos for each page (the exact number depends on the total number of pages in the machine). Additionally, we have about 64 entries in the page directory after mem_init() is finished, corresponding to 64 pages = 256KB used to store page tables.
+
+
+Question 6.
+===========
+
+We transition to virtual addresses above KERNBASE at jmp %eax. At that point, the bootstrap page tables have a mapping from [0, 4MB) to [0, 4MB) as well as from [KERNBASE, KERNBASE + 4MB) to [0, 4MB), so the low instruction pointers still work. The transition is necessary because the real page tables do not have the trivial mapping [0, 4MB) to [0, 4MB), so we need to use the real virtual address above KERNBASE before the real page tables are loaded.
+
+
+Challenge!
+==========
+
+To enable large 4MB pages, I stored pointers of the large pages directly as entries of the root page directory, without having to allocate separate page tables for each page from KERNBASE to 2^32.
+
+The highest 10 bits designated the page address (since 4MB = 2^22), and additionally I set the PTE_PS bit.
+
+Finally, I set the CR4_PSE bit in the CR4 register, to enable the processor to recognize the extended page entries.
+
+To check if the processor has PSE enabled, I call cpuid with the %eax register set to 1, and then read bit 3 of the processor info stored in %edx.
+

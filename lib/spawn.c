@@ -6,6 +6,7 @@
 #define UTEMP3			(UTEMP2 + PGSIZE)
 
 // Helper functions for spawn.
+static int setup_child(const char *prog, const char **argv);
 static int init_stack(envid_t child, const char **argv, uintptr_t *init_esp);
 static int map_segment(envid_t child, uintptr_t va, size_t memsz,
 		       int fd, size_t filesz, off_t fileoffset, int perm);
@@ -18,6 +19,98 @@ static int copy_shared_pages(envid_t child);
 // Returns child envid on success, < 0 on failure.
 int
 spawn(const char *prog, const char **argv)
+{
+    int child, r;
+
+    if ((child = setup_child(prog, argv)) < 0)
+        return child;
+
+	if ((r = sys_env_set_status(child, ENV_RUNNABLE)) < 0)
+		panic("sys_env_set_status: %e", r);
+
+    return child;
+}
+
+// Spawn, taking command-line arguments array directly on the stack.
+// NOTE: Must have a sentinal of NULL at the end of the args
+// (none of the args may be NULL).
+int
+spawnl(const char *prog, const char *arg0, ...)
+{
+	// We calculate argc by advancing the args until we hit NULL.
+	// The contract of the function guarantees that the last
+	// argument will always be NULL, and that none of the other
+	// arguments will be NULL.
+	int argc=0;
+	va_list vl;
+	va_start(vl, arg0);
+	while(va_arg(vl, void *) != NULL)
+		argc++;
+	va_end(vl);
+
+	// Now that we have the size of the args, do a second pass
+	// and store the values in a VLA, which has the format of argv
+	const char *argv[argc+2];
+	argv[0] = arg0;
+	argv[argc+1] = NULL;
+
+	va_start(vl, arg0);
+	unsigned i;
+	for(i=0;i<argc;i++)
+		argv[i+1] = va_arg(vl, const char *);
+	va_end(vl);
+	return spawn(prog, argv);
+}
+
+// Exec a process from a program image loaded from the file system.
+// prog: the pathname of the program to run.
+// argv: pointer to null-terminated array of pointers to strings,
+// 	 which will be passed to the child as its command-line arguments.
+// Returns < 0 on failure, does not return on success.
+int
+exec(const char *prog, const char **argv)
+{
+    int child, r;
+
+    if ((child = setup_child(prog, argv)) < 0)
+        return child;
+
+	if ((r = sys_env_convert(child)) < 0)
+		panic("sys_env_convert: %e", r);
+
+    panic("exec failed");  // should never get here
+}
+
+// Exec, taking command-line arguments array directly on the stack.
+int
+execl(const char *prog, const char *arg0, ...)
+{
+	// We calculate argc by advancing the args until we hit NULL.
+	int argc=0;
+	va_list vl;
+	va_start(vl, arg0);
+	while(va_arg(vl, void *) != NULL)
+		argc++;
+	va_end(vl);
+
+	// Now that we have the size of the args, do a second pass
+	// and store the values in a VLA, which has the format of argv
+	const char *argv[argc+2];
+	argv[0] = arg0;
+	argv[argc+1] = NULL;
+
+	va_start(vl, arg0);
+	unsigned i;
+	for(i=0;i<argc;i++)
+		argv[i+1] = va_arg(vl, const char *);
+	va_end(vl);
+	return exec(prog, argv);
+}
+
+
+// Set up a child environment with the specified program and arguments.
+static int
+setup_child(const char *prog, const char **argv)
 {
 	unsigned char elf_buf[512];
 	struct Trapframe child_tf;
@@ -82,8 +175,6 @@ spawn(const char *prog, const char **argv)
 	//
 	//   - Call sys_env_set_trapframe(child, &child_tf) to set up the
 	//     correct initial eip and esp values in the child.
-	//
-	//   - Start the child process running with sys_env_set_status().
 
 	if ((r = open(prog, O_RDONLY)) < 0)
 		return r;
@@ -132,9 +223,6 @@ spawn(const char *prog, const char **argv)
 	if ((r = sys_env_set_trapframe(child, &child_tf)) < 0)
 		panic("sys_env_set_trapframe: %e", r);
 
-	if ((r = sys_env_set_status(child, ENV_RUNNABLE)) < 0)
-		panic("sys_env_set_status: %e", r);
-
 	return child;
 
 error:
@@ -142,38 +230,6 @@ error:
 	close(fd);
 	return r;
 }
-
-// Spawn, taking command-line arguments array directly on the stack.
-// NOTE: Must have a sentinal of NULL at the end of the args
-// (none of the args may be NULL).
-int
-spawnl(const char *prog, const char *arg0, ...)
-{
-	// We calculate argc by advancing the args until we hit NULL.
-	// The contract of the function guarantees that the last
-	// argument will always be NULL, and that none of the other
-	// arguments will be NULL.
-	int argc=0;
-	va_list vl;
-	va_start(vl, arg0);
-	while(va_arg(vl, void *) != NULL)
-		argc++;
-	va_end(vl);
-
-	// Now that we have the size of the args, do a second pass
-	// and store the values in a VLA, which has the format of argv
-	const char *argv[argc+2];
-	argv[0] = arg0;
-	argv[argc+1] = NULL;
-
-	va_start(vl, arg0);
-	unsigned i;
-	for(i=0;i<argc;i++)
-		argv[i+1] = va_arg(vl, const char *);
-	va_end(vl);
-	return spawn(prog, argv);
-}
-
 
 // Set up the initial stack page for the new child process with envid 'child'
 // using the arguments array pointed to by 'argv',
@@ -300,7 +356,17 @@ map_segment(envid_t child, uintptr_t va, size_t memsz,
 static int
 copy_shared_pages(envid_t child)
 {
-	// LAB 5: Your code here.
+    unsigned pn;
+    for (pn = 0; pn < UTOP / PGSIZE; pn++)
+        if ((uvpd[pn / NPTENTRIES] & PTE_P) &&
+                (uvpt[pn] & PTE_P) && (uvpt[pn] & PTE_SHARE)) {
+            void *va = (void*) (pn * PGSIZE);
+            int perm = PGOFF(uvpt[pn]) & PTE_SYSCALL;
+            int r;
+            if ((r = sys_page_map(0, va, child, va, perm)) < 0)
+                panic("sys_page_map: %e", r);
+        }
+
 	return 0;
 }
 

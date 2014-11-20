@@ -25,7 +25,7 @@ fsipc(unsigned type, void *dstva)
 		cprintf("[%08x] fsipc %d %08x\n", thisenv->env_id, type, *(uint32_t *)&fsipcbuf);
 
 	ipc_send(fsenv, type, &fsipcbuf, PTE_P | PTE_W | PTE_U);
-	return ipc_recv(NULL, dstva, NULL);
+	return ipc_recv(NULL, dstva, NULL, 0);
 }
 
 static int devfile_flush(struct Fd *fd);
@@ -136,12 +136,21 @@ devfile_read(struct Fd *fd, void *buf, size_t n)
 static ssize_t
 devfile_write(struct Fd *fd, const void *buf, size_t n)
 {
-	// Make an FSREQ_WRITE request to the file system server.  Be
-	// careful: fsipcbuf.write.req_buf is only so large, but
-	// remember that write is always allowed to write *fewer*
-	// bytes than requested.
-	// LAB 5: Your code here
-	panic("devfile_write not implemented");
+	// Make an FSREQ_WRITE request to the file system server.
+    int r;
+
+    // Limit n to the size of the buffer.
+    if (n > sizeof(fsipcbuf.write.req_buf))
+        n = sizeof(fsipcbuf.write.req_buf);
+
+    fsipcbuf.write.req_fileid = fd->fd_file.id;
+    fsipcbuf.write.req_n = n;
+    memcpy(&fsipcbuf.write.req_buf, buf, n);
+    if ((r = fsipc(FSREQ_WRITE, NULL)) < 0)
+        return r;
+    assert(r <= n);
+    assert(r <= PGSIZE);
+    return r;
 }
 
 static int

@@ -100,6 +100,12 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 }
 
 int
+sys_env_convert(envid_t envid)
+{
+    return syscall(SYS_env_convert, 1, envid, 0, 0, 0, 0);
+}
+
+int
 sys_env_set_pgfault_upcall(envid_t envid, void *upcall)
 {
 	return syscall(SYS_env_set_pgfault_upcall, 1, envid, (uint32_t) upcall, 0, 0, 0);
@@ -112,9 +118,9 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, int perm)
 }
 
 int
-sys_ipc_recv(void *dstva)
+sys_ipc_recv(void *dstva, envid_t srcenv)
 {
-	return syscall(SYS_ipc_recv, 1, (uint32_t)dstva, 0, 0, 0, 0);
+	return syscall(SYS_ipc_recv, 1, (uint32_t)dstva, srcenv, 0, 0, 0);
 }
 
 unsigned int

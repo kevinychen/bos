@@ -42,7 +42,7 @@ umain(int argc, char **argv)
 			sys_yield();
 		}
 		// do something to be not runnable besides exiting
-		ipc_recv(0,0,0);
+		ipc_recv(0,0,0,0);
 	}
 	pid = r;
 	cprintf("pid is %d\n", pid);

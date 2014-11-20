@@ -213,8 +213,18 @@ serve_read(envid_t envid, union Fsipc *ipc)
 	if (debug)
 		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
-	// Lab 5: Your code here:
-	return 0;
+    struct OpenFile *o;
+	int result = openfile_lookup(envid, req->req_fileid, &o);
+    if (result < 0)
+        return result;
+
+    int bytes_read = file_read(
+            o->o_file, ret->ret_buf, req->req_n, o->o_fd->fd_offset);
+    if (bytes_read < 0)
+        return bytes_read;
+
+    o->o_fd->fd_offset += bytes_read;
+    return bytes_read;
 }
 
 
@@ -228,8 +238,18 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 	if (debug)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
-	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+    struct OpenFile *o;
+    int result = openfile_lookup(envid, req->req_fileid, &o);
+    if (result < 0)
+        return result;
+
+    int bytes_written = file_write(
+            o->o_file, req->req_buf, req->req_n, o->o_fd->fd_offset);
+    if (bytes_written < 0)
+        return bytes_written;
+
+    o->o_fd->fd_offset += bytes_written;
+    return bytes_written;
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
@@ -301,7 +321,7 @@ serve(void)
 
 	while (1) {
 		perm = 0;
-		req = ipc_recv((int32_t *) &whom, fsreq, &perm);
+		req = ipc_recv((int32_t *) &whom, fsreq, &perm, 0);
 		if (debug)
 			cprintf("fs req %d from %08x [page %08x: %s]\n",
 				req, whom, uvpt[PGNUM(fsreq)], fsreq);

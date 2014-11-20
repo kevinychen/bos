@@ -270,7 +270,7 @@ serve(void) {
 
 		perm = 0;
 		va = get_buffer();
-		reqno = ipc_recv((int32_t *) &whom, (void *) va, &perm);
+		reqno = ipc_recv((int32_t *) &whom, (void *) va, &perm, 0);
 		if (debug) {
 			cprintf("ns req %d from %08x\n", reqno, whom);
 		}

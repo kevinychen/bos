@@ -52,13 +52,14 @@ void	sys_yield(void);
 static envid_t sys_exofork(void);
 int	sys_env_set_status(envid_t env, int status);
 int	sys_env_set_trapframe(envid_t env, struct Trapframe *tf);
+int	sys_env_convert(envid_t env);
 int	sys_env_set_pgfault_upcall(envid_t env, void *upcall);
 int	sys_page_alloc(envid_t env, void *pg, int perm);
 int	sys_page_map(envid_t src_env, void *src_pg,
 		     envid_t dst_env, void *dst_pg, int perm);
 int	sys_page_unmap(envid_t env, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint32_t value, void *pg, int perm);
-int	sys_ipc_recv(void *rcv_pg);
+int	sys_ipc_recv(void *rcv_pg, envid_t srcenv);
 unsigned int sys_time_msec(void);
 
 // This must be inlined.  Exercise for reader: why?
@@ -76,7 +77,7 @@ sys_exofork(void)
 
 // ipc.c
 void	ipc_send(envid_t to_env, uint32_t value, void *pg, int perm);
-int32_t ipc_recv(envid_t *from_env_store, void *pg, int *perm_store);
+int32_t ipc_recv(envid_t *from_env_store, void *pg, int *perm_store, envid_t srcenv);
 envid_t	ipc_find_env(enum EnvType type);
 
 // fork.c
@@ -126,6 +127,8 @@ int     nsipc_socket(int domain, int type, int protocol);
 // spawn.c
 envid_t	spawn(const char *program, const char **argv);
 envid_t	spawnl(const char *program, const char *arg0, ...);
+envid_t	exec(const char *program, const char **argv);
+envid_t	execl(const char *program, const char *arg0, ...);
 
 // console.c
 void	cputchar(int c);
