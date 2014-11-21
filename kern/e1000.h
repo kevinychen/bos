@@ -18,6 +18,7 @@
 #define TDESC_DD	0		// Descriptor done bit
 
 #define NUM_TX		64		// Number of transmit descriptors
+#define MAX_PACKET_LEN	16288	// Max length of transmit descriptor
 
 #include <kern/pci.h>
 

@@ -12,6 +12,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -394,6 +395,23 @@ sys_time_msec(void)
     return time_msec();
 }
 
+// Transmit a packet.
+// Returns 0 on success, < 0 on error.
+// Errors are:
+//  -E_INVAL if len is too large.
+static int
+sys_net_transmit(void *va, uint32_t len)
+{
+    user_mem_assert(curenv, va, len, 0);
+    if (len > MAX_PACKET_LEN)
+        return -E_INVAL;
+
+    pte_t *pte;
+    page_lookup(curenv->env_pgdir, va, &pte);
+    e1000_transmit(PTE_ADDR(*pte) | PGOFF(va), (uint16_t) len);
+    return 0;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -435,6 +453,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
             sys_ipc_recv((void*) a1, (envid_t) a2);  // does not return
         case SYS_time_msec:
             return sys_time_msec();
+        case SYS_net_transmit:
+            return sys_net_transmit((void*) a1, (uint32_t) a2);
         default:
             return -E_INVAL;
 	}
