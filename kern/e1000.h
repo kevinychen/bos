@@ -12,6 +12,11 @@
 #define TX_TDH		0x03810	// Transmit descriptor head
 #define TX_TDT		0x03818	// Transmit descriptor tail
 
+#define TDESC_DEXT	5		// Legacy extension bit
+#define TDESC_RS	3		// Report status bit
+#define TDESC_EOP	0		// End of packet bit
+#define TDESC_DD	0		// Descriptor done bit
+
 #define NUM_TX		64		// Number of transmit descriptors
 
 #include <kern/pci.h>
@@ -28,5 +33,8 @@ struct tx_desc {
 
 int
 e1000_attachfn(struct pci_func *pcif);
+
+int
+e1000_transmit(uint64_t addr, uint16_t length);
 
 #endif	// JOS_KERN_E1000_H
