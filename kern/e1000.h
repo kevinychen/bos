@@ -17,7 +17,23 @@
 #define TDESC_EOP	0		// End of packet bit
 #define TDESC_DD	0		// Descriptor done bit
 
+#define RX_RCTL	0x00100	// Receive control register
+#define RX_RCTL_EN	1		// Receive control enable bit
+#define RX_RCTL_BAM	15		// Receive control broadcast accept mode bit
+#define RX_RCTL_BSIZE	16		// Receive control buffer size bit
+#define RX_RCTL_SECRC	26		// Receive control strip ethernet CRC bit
+
+#define RX_RDBAL	0x02800	// Receive descriptor base address
+#define RX_RDLEN	0x02808	// Receive descriptor length
+#define RX_RDH		0x02810	// Receive address head
+#define RX_RDT		0x02818	// Receive address tail
+
+#define RX_MTA		0x05200	// Multicast table array
+#define RX_RAL		0x05400	// Receive address low
+#define RX_RAH		0x05404	// Receive address high
+
 #define NUM_TX		64		// Number of transmit descriptors
+#define NUM_RX		128		// Number of receive descriptors
 #define MAX_PACKET_LEN	16288	// Max length of transmit descriptor
 
 #include <kern/pci.h>
@@ -29,6 +45,15 @@ struct tx_desc {
     uint8_t cmd;
     uint8_t status;
     uint8_t css;
+    uint16_t special;
+};
+
+struct rx_desc {
+    uint64_t addr;
+    uint16_t length;
+    uint16_t cso;
+    uint8_t status;
+    uint8_t errors;
     uint16_t special;
 };
 

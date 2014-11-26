@@ -5,6 +5,7 @@
 
 volatile uint32_t *e1000_mem;
 struct tx_desc transmit_descriptors[NUM_TX];
+struct rx_desc receive_descriptors[NUM_RX];
 
 // Initialize the E1000
 int
@@ -26,6 +27,18 @@ e1000_attachfn(struct pci_func *pcif) {
     int i;
     for (i = 0; i < NUM_TX; i++)
         transmit_descriptors[i].status |= (1 << TDESC_DD);
+
+    // Initialize receive descriptor array
+    e1000_mem[RX_RAL >> 2] = 0x12005452;
+    e1000_mem[RX_RAH >> 2] = 0x80005634;
+    e1000_mem[RX_MTA >> 2] = 0;
+    e1000_mem[RX_RDBAL >> 2] = PADDR(receive_descriptors);
+    e1000_mem[RX_RDLEN >> 2] = NUM_RX * sizeof(struct rx_desc);
+    e1000_mem[RX_RDH >> 2] = 0;
+    e1000_mem[RX_RDT >> 2] = NUM_RX - 1;
+    e1000_mem[RX_RCTL >> 2] =
+        (1 << RX_RCTL_EN) | (1 << RX_RCTL_BAM) | (0 << RX_RCTL_BSIZE) |
+        (1 << RX_RCTL_SECRC);
 
     return 0;
 }
