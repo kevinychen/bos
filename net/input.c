@@ -1,16 +1,22 @@
 #include "ns.h"
+#include "inc/lib.h"
 
-extern union Nsipc nsipcbuf;
+#define BUF_SIZE	128
+union Nsipc bufs[BUF_SIZE] __attribute__((aligned(PGSIZE)));
 
 void
 input(envid_t ns_envid)
 {
 	binaryname = "ns_input";
 
-	// LAB 6: Your code here:
-	// 	- read a packet from the device driver
-	//	- send it to the network server
-	// Hint: When you IPC a page to the network server, it will be
-	// reading from it for a while, so don't immediately receive
-	// another packet in to the same physical page.
+    int result;
+    union Nsipc *buf = bufs;
+    while (true) {
+        if ((result = sys_net_receive(buf->pkt.jp_data)) >= 0) {
+            buf->pkt.jp_len = result;
+            ipc_send(ns_envid, NSREQ_INPUT, buf, PTE_U | PTE_P);
+            if (++buf == bufs + BUF_SIZE)
+                buf = bufs;
+        }
+    }
 }
