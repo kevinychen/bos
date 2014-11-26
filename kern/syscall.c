@@ -412,6 +412,18 @@ sys_net_transmit(void *va, uint32_t len)
     return 0;
 }
 
+// Receive a packet.
+// Returns length of packet on success, < 0 on error.
+static int
+sys_net_receive(void *va)
+{
+    user_mem_assert(curenv, va, MAX_PACKET_BUF, 0);
+
+    pte_t *pte;
+    page_lookup(curenv->env_pgdir, va, &pte);
+    return e1000_receive(PTE_ADDR(*pte) | PGOFF(va));
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -455,6 +467,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
             return sys_time_msec();
         case SYS_net_transmit:
             return sys_net_transmit((void*) a1, (uint32_t) a2);
+        case SYS_net_receive:
+            return sys_net_receive((void*) a1);
         default:
             return -E_INVAL;
 	}

@@ -134,3 +134,9 @@ sys_net_transmit(void *va, uint32_t len)
 {
     return syscall(SYS_net_transmit, 1, (uint32_t) va, len, 0, 0, 0);
 }
+
+int
+sys_net_receive(void *va)
+{
+    return syscall(SYS_net_receive, 0, (uint32_t) va, 0, 0, 0, 0);
+}
