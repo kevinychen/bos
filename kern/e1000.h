@@ -32,9 +32,12 @@
 #define RX_RAL		0x05400	// Receive address low
 #define RX_RAH		0x05404	// Receive address high
 
+#define RDESC_DD	0		// Descriptor done bit
+
 #define NUM_TX		64		// Number of transmit descriptors
 #define NUM_RX		128		// Number of receive descriptors
 #define MAX_PACKET_LEN	16288	// Max length of transmit descriptor
+#define MAX_PACKET_BUF	2048	// Max length of received packet
 
 #include <kern/pci.h>
 
@@ -62,5 +65,8 @@ e1000_attachfn(struct pci_func *pcif);
 
 int
 e1000_transmit(uint64_t addr, uint16_t length);
+
+int
+e1000_receive(uint64_t addr);
 
 #endif	// JOS_KERN_E1000_H

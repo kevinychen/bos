@@ -1,4 +1,5 @@
 #include <inc/error.h>
+#include <inc/string.h>
 
 #include <kern/e1000.h>
 #include <kern/pmap.h>
@@ -6,10 +7,13 @@
 volatile uint32_t *e1000_mem;
 struct tx_desc transmit_descriptors[NUM_TX];
 struct rx_desc receive_descriptors[NUM_RX];
+char buf[NUM_RX][MAX_PACKET_BUF];
 
 // Initialize the E1000
 int
 e1000_attachfn(struct pci_func *pcif) {
+    int i;
+
     // Enable the E1000
     pci_func_enable(pcif);
 
@@ -24,7 +28,6 @@ e1000_attachfn(struct pci_func *pcif) {
     e1000_mem[TX_TDT >> 2] = 0;
     e1000_mem[TX_TCTL >> 2] =
         (1 << TX_TCTL_EN) | (1 << TX_TCTL_PSP) | (0x40 << TX_TCTL_COLD);
-    int i;
     for (i = 0; i < NUM_TX; i++)
         transmit_descriptors[i].status |= (1 << TDESC_DD);
 
@@ -39,6 +42,8 @@ e1000_attachfn(struct pci_func *pcif) {
     e1000_mem[RX_RCTL >> 2] =
         (1 << RX_RCTL_EN) | (1 << RX_RCTL_BAM) | (0 << RX_RCTL_BSIZE) |
         (1 << RX_RCTL_SECRC);
+    for (i = 0; i < NUM_RX; i++)
+        receive_descriptors[i].addr = PADDR(buf[i]);
 
     return 0;
 }
@@ -57,4 +62,19 @@ e1000_transmit(uint64_t addr, uint16_t length) {
     e1000_mem[TX_TDT >> 2] = (e1000_mem[TX_TDT >> 2] + 1) % NUM_TX;
 
     return 0;
+}
+
+// Receive a packet
+int
+e1000_receive(uint64_t addr) {
+    uint32_t new_rdt = (e1000_mem[RX_RDT >> 2] + 1) % NUM_RX;
+    struct rx_desc desc = receive_descriptors[new_rdt];
+    if (!(desc.status & (1 << RDESC_DD)))
+        return -E_NO_MEM;
+
+    memcpy(KADDR(addr), buf[new_rdt], desc.length);
+    desc.status &= ~(1 << TDESC_DD);
+    e1000_mem[RX_RDT >> 2] = new_rdt;
+
+    return desc.length;
 }
