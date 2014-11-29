@@ -1,0 +1,27 @@
+Question 1.
+===========
+
+I implemented a system call sys_net_transmit(void *va, uint32_t len) which sends the packet with data at the corresponding virtual address va and length, in bytes. Calling this function will cause the data to be added to the end of the transmission ring buffer.
+
+If the ring buffer is full, then the system call returns an error code without storing the packet. The network server output environment does not read the return code, so the packet will just be dropped.
+
+
+Question 2.
+===========
+
+I implemented a system call sys_net_receive(void *va) which receivs a packet and maps the data at virtual address va. The network server input environment repeatedly calls sys_net_receive at various addresses (which repeat after a while, but are different so that the server has time to read and send the data).
+
+If the receive queue is empty, then the sys_net_receive call returns an error code, which will cause the input environment to yield and try again later.
+
+
+Question 3.
+===========
+
+This file came from JOS.
+<marquee>Cheesy web page!</marquee>
+
+
+Question 4.
+===========
+
+10 hours.
