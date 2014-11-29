@@ -1,3 +1,5 @@
+#include <inc/assert.h>
+#include <inc/fd.h>
 #include <inc/lib.h>
 #include <lwip/sockets.h>
 #include <lwip/inet.h>
@@ -76,8 +78,16 @@ send_header(struct http_request *req, int code)
 static int
 send_data(struct http_request *req, int fd)
 {
-	// LAB 6: Your code here.
-	panic("send_data not implemented");
+    char buf[BUFFSIZE];
+    while (1) {
+        int len = read(fd, buf, BUFFSIZE);
+        if (len < 0)
+            return len;
+        if (write(req->sock, buf, len) != len)
+            return -1;
+        if (len < PGSIZE)
+            return 0;
+    }
 }
 
 static int
@@ -221,9 +231,12 @@ send_file(struct http_request *req)
 	// if the file does not exist, send a 404 error using send_error
 	// if the file is a directory, send a 404 error using send_error
 	// set file_size to the size of the file
+    struct Stat fs_stat;
+    if (stat(req->url, &fs_stat) < 0 || fs_stat.st_isdir)
+        return send_error(req, 404);
 
-	// LAB 6: Your code here.
-	panic("send_file not implemented");
+    file_size = fs_stat.st_size;
+    fd = open(req->url, O_RDONLY);
 
 	if ((r = send_header(req, 200)) < 0)
 		goto end;
