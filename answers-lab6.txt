@@ -25,3 +25,14 @@ Question 4.
 ===========
 
 10 hours.
+
+
+Challenge!
+==========
+
+In the e1000 initialization function, I read from EEPROM to obtain the MAC address of QEMU. I implemented a function read_eeprom() and read from address locations 0x0 to 0x2 to obtain the six 16-bit words that make up the MAC address.
+
+To allow lwIP to obtain the MAC address, I implemented two system calls sys_mac_addr_low() and sys_mac_addr_high() which return the lower and higher bits of the MAC address, respectively. Then I changed net/lwip/jos/jif/jif.c to make the system calls instead of hard coding the default MAC address.
+
+To test the updated code, I added a flag macaddr=XX:XX:XX:XX:XX:XX to the Makefile, and everything ran smoothly.
+
