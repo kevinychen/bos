@@ -140,3 +140,15 @@ sys_net_receive(void *va)
 {
     return syscall(SYS_net_receive, 0, (uint32_t) va, 0, 0, 0, 0);
 }
+
+int
+sys_mac_addr_low()
+{
+    return syscall(SYS_mac_addr_low, 0, 0, 0, 0, 0, 0);
+}
+
+int
+sys_mac_addr_high()
+{
+    return syscall(SYS_mac_addr_high, 0, 0, 0, 0, 0, 0);
+}

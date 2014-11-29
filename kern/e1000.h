@@ -31,6 +31,7 @@
 #define RX_MTA		0x05200	// Multicast table array
 #define RX_RAL		0x05400	// Receive address low
 #define RX_RAH		0x05404	// Receive address high
+#define RX_RAH_AV	31		// Receive address valid
 
 #define RDESC_DD	0		// Descriptor done bit
 
@@ -38,6 +39,12 @@
 #define NUM_RX		128		// Number of receive descriptors
 #define MAX_PACKET_LEN	16288	// Max length of transmit descriptor
 #define MAX_PACKET_BUF	2048	// Max length of received packet
+
+#define EC_EERD		0x00014 // EEPROM read
+#define EC_EERD_START	0		// EEPROM read start
+#define EC_EERD_DONE	4		// EEPROM read done
+#define EC_EERD_ADDR	8		// EEPROM read address
+#define EC_EERD_DATA	16		// EEPROM read data
 
 #include <kern/pci.h>
 
@@ -62,6 +69,12 @@ struct rx_desc {
 
 int
 e1000_attachfn(struct pci_func *pcif);
+
+int
+e1000_mac_addr_low();
+
+int
+e1000_mac_addr_high();
 
 int
 e1000_transmit(uint64_t addr, uint16_t length);

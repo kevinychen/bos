@@ -424,6 +424,20 @@ sys_net_receive(void *va)
     return e1000_receive(PTE_ADDR(*pte) | PGOFF(va));
 }
 
+// Return the low bits of the MAC address
+static int
+sys_mac_addr_low()
+{
+    return e1000_mac_addr_low();
+}
+
+// Return the high bits of the MAC address
+static int
+sys_mac_addr_high()
+{
+    return e1000_mac_addr_high();
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -469,6 +483,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
             return sys_net_transmit((void*) a1, (uint32_t) a2);
         case SYS_net_receive:
             return sys_net_receive((void*) a1);
+        case SYS_mac_addr_low:
+            return sys_mac_addr_low();
+        case SYS_mac_addr_high:
+            return sys_mac_addr_high();
         default:
             return -E_INVAL;
 	}

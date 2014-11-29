@@ -32,8 +32,9 @@ e1000_attachfn(struct pci_func *pcif) {
         transmit_descriptors[i].status |= (1 << TDESC_DD);
 
     // Initialize receive descriptor array
-    e1000_mem[RX_RAL >> 2] = 0x12005452;
-    e1000_mem[RX_RAH >> 2] = 0x80005634;
+    e1000_mem[RX_RAL >> 2] = e1000_mac_addr_low();
+    e1000_mem[RX_RAH >> 2] =
+        (1 << RX_RAH_AV) | e1000_mac_addr_high();
     e1000_mem[RX_MTA >> 2] = 0;
     e1000_mem[RX_RDBAL >> 2] = PADDR(receive_descriptors);
     e1000_mem[RX_RDLEN >> 2] = NUM_RX * sizeof(struct rx_desc);
@@ -46,6 +47,26 @@ e1000_attachfn(struct pci_func *pcif) {
         receive_descriptors[i].addr = PADDR(buf[i]);
 
     return 0;
+}
+
+// Read the specified address from the EEPROM
+static int
+read_eeprom(int addr) {
+    e1000_mem[EC_EERD >> 2] =
+        (1 << EC_EERD_START) | (addr << EC_EERD_ADDR);
+    while ((e1000_mem[EC_EERD >> 2] & (1 << EC_EERD_DONE)) == 0);
+    return e1000_mem[EC_EERD >> 2] >> EC_EERD_DATA;
+}
+
+// Get MAC address low bits
+int
+e1000_mac_addr_low() {
+    return (read_eeprom(1) << 16) | read_eeprom(0);
+}
+
+int
+e1000_mac_addr_high() {
+    return read_eeprom(2);
 }
 
 // Transmit a packet
