@@ -122,7 +122,6 @@ devfile_read(struct Fd *fd, void *buf, size_t n)
 	if ((r = fsipc(FSREQ_READ, NULL)) < 0)
 		return r;
 	assert(r <= n);
-	assert(r <= PGSIZE);
 	memmove(buf, fsipcbuf.readRet.ret_buf, r);
 	return r;
 }
@@ -149,7 +148,6 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
     if ((r = fsipc(FSREQ_WRITE, NULL)) < 0)
         return r;
     assert(r <= n);
-    assert(r <= PGSIZE);
     return r;
 }
 
