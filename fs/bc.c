@@ -47,6 +47,8 @@ bc_pgfault(struct UTrapframe *utf)
     addr = ROUNDDOWN(addr, BLKSIZE);
     sys_page_alloc(0, addr, PTE_U | PTE_W | PTE_P);
     ide_read(blockno * BLKSECTS, addr, BLKSECTS);
+    if (bitmap)
+        bitmap[blockno / 32] &= ~(1 << (blockno % 32));
 
 	// Clear the dirty bit for the disk block page since we just read the
 	// block from disk
