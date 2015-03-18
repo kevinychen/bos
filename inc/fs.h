@@ -36,9 +36,13 @@ struct File {
 	uint32_t f_direct[NDIRECT];	// direct blocks
 	uint32_t f_indirect;		// indirect block
 
+    // History list
+    uint32_t f_next_file;  // next version of file
+    time_t f_timestamp;  // timestamp created
+
 	// Pad out to 256 bytes; must do arithmetic in case we're compiling
 	// fsformat on a 64-bit machine.
-	uint8_t f_pad[256 - MAXNAMELEN - 8 - 4*NDIRECT - 4];
+	uint8_t f_pad[256 - MAXNAMELEN - 8 - 4*NDIRECT - 4 - 4 - 8];
 } __attribute__((packed));	// required only on some 64-bit machines
 
 // An inode block contains exactly BLKFILES 'struct File's
@@ -77,6 +81,7 @@ union Fsipc {
 	struct Fsreq_open {
 		char req_path[MAXPATHLEN];
 		int req_omode;
+        time_t req_timestamp;
 	} open;
 	struct Fsreq_set_size {
 		int req_fileid;
@@ -92,7 +97,8 @@ union Fsipc {
 	struct Fsreq_write {
 		int req_fileid;
 		size_t req_n;
-		char req_buf[PGSIZE - (sizeof(int) + sizeof(size_t))];
+        time_t req_timestamp;
+		char req_buf[PGSIZE - (sizeof(int) + sizeof(size_t) + sizeof(time_t))];
 	} write;
 	struct Fsreq_stat {
 		int req_fileid;

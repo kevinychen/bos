@@ -161,6 +161,28 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
     return 0;
 }
 
+// Set *ppdiskbno to the pointer to the block in memory
+// where the filebno'th block of file 'f' would be mapped.
+//
+// Returns 0 on success, < 0 on error.  Errors are:
+//	-E_NO_DISK if a block needed to be allocated but the disk is full.
+//	-E_INVAL if filebno is out of range.
+int
+file_get_diskbno(struct File *f, uint32_t filebno, uint32_t **ppdiskbno) {
+    int result = file_block_walk(f, filebno, ppdiskbno, 1);
+    if (result < 0)
+        return result;
+
+    if (**ppdiskbno == 0) {
+        int blockno = alloc_block();
+        if (blockno < 0)
+            return blockno;
+        **ppdiskbno = blockno;
+    }
+
+    return 0;
+}
+
 // Set *blk to the address in memory where the filebno'th
 // block of file 'f' would be mapped.
 //
@@ -171,19 +193,38 @@ int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
     uint32_t *diskbno;
-    int result = file_block_walk(f, filebno, &diskbno, 1);
-    if (result < 0)
-        return result;
-
-    if (*diskbno == 0) {
-        int blockno = alloc_block();
-        if (blockno < 0)
-            return blockno;
-
-        *diskbno = blockno;
-    }
-
+    int r = file_get_diskbno(f, filebno, &diskbno);
+    if (r < 0)
+        return r;
     *blk = diskaddr(*diskbno);
+    return 0;
+}
+
+// Copies blk to a newly allocated block.
+int
+copy_block(void *blk)
+{
+    // Copy the block
+    int new_blockno = alloc_block();
+    if (new_blockno < 0)
+        return new_blockno;
+    memcpy(diskaddr(new_blockno), blk, BLKSIZE);
+    return new_blockno;
+}
+
+// Write the data in buf to a new copy of the block at blockno.
+int
+write_block(uint32_t *blockno, const void *buf, size_t count, off_t offset)
+{
+    char *blk = diskaddr(*blockno);
+
+    int new_blockno = copy_block(blk);
+    if (new_blockno < 0)
+        return new_blockno;
+    *blockno = new_blockno;
+
+    char *new_blk = diskaddr(new_blockno);
+    memmove(new_blk + offset, buf, count);
     return 0;
 }
 
@@ -319,7 +360,7 @@ walk_path(const char *path, struct File **pdir, struct File **pf, char *lastelem
 // Create "path".  On success set *pf to point at the file and return 0.
 // On error return < 0.
 int
-file_create(const char *path, struct File **pf)
+file_create(const char *path, struct File **pf, time_t timestamp)
 {
 	char name[MAXNAMELEN];
 	int r;
@@ -333,6 +374,10 @@ file_create(const char *path, struct File **pf)
 		return r;
 
 	strcpy(f->f_name, name);
+    file_set_size(f, 0);
+    f->f_next_file = 0;
+    f->f_timestamp = timestamp;
+
 	*pf = f;
 	file_flush(dir);
 	return 0;
@@ -379,11 +424,20 @@ file_read(struct File *f, void *buf, size_t count, off_t offset)
 // Extends the file if necessary.
 // Returns the number of bytes written, < 0 on error.
 int
-file_write(struct File *f, const void *buf, size_t count, off_t offset)
+file_write(struct File *f, const void *buf, size_t count, off_t offset, time_t timestamp)
 {
 	int r, bn;
 	off_t pos;
 	char *blk;
+
+    // Copy file struct: F -> F2 -> ... to F -> F' -> F2 -> ...
+    int blockno = copy_block(f);
+    if (blockno < 0)
+        return blockno;
+
+    // Update current file
+    f->f_next_file = blockno;
+    f->f_timestamp = timestamp;
 
 	// Extend file if necessary
 	if (offset + count > f->f_size)
@@ -391,10 +445,11 @@ file_write(struct File *f, const void *buf, size_t count, off_t offset)
 			return r;
 
 	for (pos = offset; pos < offset + count; ) {
-		if ((r = file_get_block(f, pos / BLKSIZE, &blk)) < 0)
-			return r;
+        uint32_t *diskbno;
+        if ((r = file_get_diskbno(f, pos / BLKSIZE, &diskbno)) < 0)
+            return r;
 		bn = MIN(BLKSIZE - pos % BLKSIZE, offset + count - pos);
-		memmove(blk + pos % BLKSIZE, buf, bn);
+        write_block(diskbno, buf, bn, pos % BLKSIZE);
 		pos += bn;
 		buf += bn;
 	}

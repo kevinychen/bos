@@ -126,7 +126,7 @@ serve_open(envid_t envid, struct Fsreq_open *req,
 
 	// Open the file
 	if (req->req_omode & O_CREAT) {
-		if ((r = file_create(path, &f)) < 0) {
+		if ((r = file_create(path, &f, req->req_timestamp)) < 0) {
 			if (!(req->req_omode & O_EXCL) && r == -E_FILE_EXISTS)
 				goto try_open;
 			if (debug)
@@ -244,7 +244,7 @@ serve_write(envid_t envid, struct Fsreq_write *req)
         return result;
 
     int bytes_written = file_write(
-            o->o_file, req->req_buf, req->req_n, o->o_fd->fd_offset);
+            o->o_file, req->req_buf, req->req_n, o->o_fd->fd_offset, req->req_timestamp);
     if (bytes_written < 0)
         return bytes_written;
 
