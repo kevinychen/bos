@@ -457,6 +457,26 @@ file_write(struct File *f, const void *buf, size_t count, off_t offset, time_t t
 	return count;
 }
 
+int
+file_history(struct File *f, time_t *buf, size_t count, off_t offset)
+{
+    time_t *buf_ptr = buf;
+    while (f) {
+        if (offset)
+            offset--;
+        else if (count--)
+            *buf_ptr++ = f->f_timestamp;
+        else
+            break;
+
+        if (f->f_next_file)
+            f = (struct File*) diskaddr(f->f_next_file);
+        else
+            break;
+    }
+    return buf_ptr - buf;
+}
+
 // Remove a block from file f.  If it's not there, just silently succeed.
 // Returns 0 on success, < 0 on error.
 static int

@@ -18,6 +18,7 @@ FSIMGTXTFILES :=	$(FSIMGTXTFILES) \
 USERAPPS :=		$(USERAPPS) \
 			$(OBJDIR)/user/cat \
 			$(OBJDIR)/user/echo \
+			$(OBJDIR)/user/history \
 			$(OBJDIR)/user/init \
 			$(OBJDIR)/user/ls \
 			$(OBJDIR)/user/lsfd \

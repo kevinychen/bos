@@ -72,6 +72,8 @@ enum {
 	FSREQ_WRITE,
 	// Stat returns a Fsret_stat on the request page
 	FSREQ_STAT,
+	// History returns a Fsret_history on the request page
+	FSREQ_HISTORY,
 	FSREQ_FLUSH,
 	FSREQ_REMOVE,
 	FSREQ_SYNC
@@ -108,6 +110,14 @@ union Fsipc {
 		off_t ret_size;
 		int ret_isdir;
 	} statRet;
+    struct Fsreq_history {
+        int req_fileid;
+        size_t req_n;
+        off_t req_offset;
+    } history;
+    struct Fsret_history {
+        time_t ret_buf[PGSIZE / sizeof(time_t)];
+    } historyRet;
 	struct Fsreq_flush {
 		int req_fileid;
 	} flush;

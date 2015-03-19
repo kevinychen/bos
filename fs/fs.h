@@ -35,6 +35,7 @@ int	file_create(const char *path, struct File **f, time_t timestamp);
 int	file_open(const char *path, struct File **f);
 ssize_t	file_read(struct File *f, void *buf, size_t count, off_t offset);
 int	file_write(struct File *f, const void *buf, size_t count, off_t offset, time_t timestamp);
+int	file_history(struct File *f, time_t *buf, size_t count, off_t offset);
 int	file_set_size(struct File *f, off_t newsize);
 void	file_flush(struct File *f);
 int	file_remove(const char *path);

@@ -31,6 +31,7 @@ fsipc(unsigned type, void *dstva)
 static int devfile_flush(struct Fd *fd);
 static ssize_t devfile_read(struct Fd *fd, void *buf, size_t n);
 static ssize_t devfile_write(struct Fd *fd, const void *buf, size_t n);
+static ssize_t devfile_history(struct Fd *fd, time_t *buf, size_t n, off_t offset);
 static int devfile_stat(struct Fd *fd, struct Stat *stat);
 static int devfile_trunc(struct Fd *fd, off_t newsize);
 
@@ -42,6 +43,7 @@ struct Dev devfile =
 	.dev_close =	devfile_flush,
 	.dev_stat =	devfile_stat,
 	.dev_write =	devfile_write,
+	.dev_history =	devfile_history,
 	.dev_trunc =	devfile_trunc
 };
 
@@ -163,6 +165,20 @@ devfile_stat(struct Fd *fd, struct Stat *st)
 	st->st_size = fsipcbuf.statRet.ret_size;
 	st->st_isdir = fsipcbuf.statRet.ret_isdir;
 	return 0;
+}
+
+static ssize_t
+devfile_history(struct Fd *fd, time_t *buf, size_t n, off_t offset)
+{
+    int r;
+
+    fsipcbuf.history.req_fileid = fd->fd_file.id;
+    fsipcbuf.history.req_n = n;
+    fsipcbuf.history.req_offset = offset;
+    if ((r = fsipc(FSREQ_HISTORY, NULL)) < 0)
+        return r;
+	memmove(buf, fsipcbuf.readRet.ret_buf, r);
+    return r;
 }
 
 // Truncate or extend an open file to 'size' bytes

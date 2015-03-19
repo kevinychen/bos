@@ -93,6 +93,7 @@ envid_t	sfork(void);	// Challenge!
 int	close(int fd);
 ssize_t	read(int fd, void *buf, size_t nbytes);
 ssize_t	write(int fd, const void *buf, size_t nbytes);
+ssize_t history(int fd, time_t *buf, size_t nbytes, off_t offset);
 int	seek(int fd, off_t offset);
 void	close_all(void);
 ssize_t	readn(int fd, void *buf, size_t nbytes);

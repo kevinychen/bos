@@ -257,6 +257,21 @@ write(int fdnum, const void *buf, size_t n)
 	return (*dev->dev_write)(fd, buf, n);
 }
 
+ssize_t
+history(int fdnum, time_t *buf, size_t n, off_t offset)
+{
+	int r;
+	struct Dev *dev;
+	struct Fd *fd;
+
+	if ((r = fd_lookup(fdnum, &fd)) < 0
+	    || (r = dev_lookup(fd->fd_dev_id, &dev)) < 0)
+		return r;
+	if (!dev->dev_history)
+		return -E_NOT_SUPP;
+	return (*dev->dev_history)(fd, buf, n, offset);
+}
+
 int
 seek(int fdnum, off_t offset)
 {

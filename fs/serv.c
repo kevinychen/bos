@@ -274,6 +274,23 @@ serve_stat(envid_t envid, union Fsipc *ipc)
 	return 0;
 }
 
+int
+serve_history(envid_t envid, union Fsipc *ipc)
+{
+    struct Fsreq_history *req = &ipc->history;
+    struct Fsret_history *ret = &ipc->historyRet;
+    struct OpenFile *o;
+    int r;
+
+    if (debug)
+        cprintf("serve_history %08x %08\n", envid, req->req_fileid);
+
+    if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+        return r;
+
+    return file_history(o->o_file, ret->ret_buf, req->req_n, req->req_offset);
+}
+
 // Flush all data and metadata of req->req_fileid to disk.
 int
 serve_flush(envid_t envid, struct Fsreq_flush *req)
@@ -305,6 +322,7 @@ fshandler handlers[] = {
 	/* [FSREQ_OPEN] =	(fshandler)serve_open, */
 	[FSREQ_READ] =		serve_read,
 	[FSREQ_STAT] =		serve_stat,
+	[FSREQ_HISTORY] =	serve_history,
 	[FSREQ_FLUSH] =		(fshandler)serve_flush,
 	[FSREQ_WRITE] =		(fshandler)serve_write,
 	[FSREQ_SET_SIZE] =	(fshandler)serve_set_size,
