@@ -361,6 +361,7 @@ file_create(const char *path, struct File **pf, time_t timestamp)
     file_set_size(f, 0);
     f->f_next_file = 0;
     f->f_timestamp = timestamp;
+    f->f_dirty = true;
 
 	*pf = f;
 	file_flush(dir, timestamp);
@@ -436,6 +437,7 @@ file_write(struct File *f, const void *buf, size_t count, off_t offset)
                     return new_blockno;
                 *diskbno = new_blockno;
             }
+            f->f_dirty = true;
         }
 
 		bn = MIN(BLKSIZE - pos % BLKSIZE, offset + count - pos);
@@ -532,14 +534,18 @@ file_flush(struct File *f, time_t timestamp)
 	int i;
 	uint32_t *pdiskbno;
 
-    // Copy file struct: F -> F2 -> ... to F -> F' -> F2 -> ...
-    int blockno = copy_block(f);
-    if (blockno < 0)
-        panic("out of memory in file_flush");
+    if (f->f_dirty) {
+        f->f_dirty = false;
 
-    // Update current file
-    f->f_next_file = blockno;
-    f->f_timestamp = timestamp;
+        // Copy file struct: F -> F2 -> ... to F -> F' -> F2 -> ...
+        int blockno = copy_block(f);
+        if (blockno < 0)
+            panic("out of memory in file_flush");
+
+        // Update current file
+        f->f_next_file = blockno;
+        f->f_timestamp = timestamp;
+    }
 
 	for (i = 0; i < (f->f_size + BLKSIZE - 1) / BLKSIZE; i++) {
 		if (file_block_walk(f, i, &pdiskbno, 0) < 0 ||

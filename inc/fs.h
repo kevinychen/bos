@@ -39,10 +39,11 @@ struct File {
     // History list
     uint32_t f_next_file;  // next version of file
     time_t f_timestamp;  // timestamp created
+    bool f_dirty;  // modified from next version of file
 
 	// Pad out to 256 bytes; must do arithmetic in case we're compiling
 	// fsformat on a 64-bit machine.
-	uint8_t f_pad[256 - MAXNAMELEN - 8 - 4*NDIRECT - 4 - 4 - 8];
+	uint8_t f_pad[256 - MAXNAMELEN - 8 - 4*NDIRECT - 4 - 4 - 8 - sizeof(bool)];
 } __attribute__((packed));	// required only on some 64-bit machines
 
 // An inode block contains exactly BLKFILES 'struct File's
