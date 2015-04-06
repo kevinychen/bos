@@ -545,6 +545,9 @@ file_flush(struct File *f, time_t timestamp)
         // Update current file
         f->f_next_file = blockno;
         f->f_timestamp = timestamp;
+
+        // Flush copied file
+        flush_block(diskaddr(blockno));
     }
 
 	for (i = 0; i < (f->f_size + BLKSIZE - 1) / BLKSIZE; i++) {
