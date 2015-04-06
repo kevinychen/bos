@@ -126,7 +126,7 @@ serve_open(envid_t envid, struct Fsreq_open *req,
 
 	// Open the file
 	if (req->req_omode & O_CREAT) {
-		if ((r = file_create(path, &f, 0)) < 0) {
+		if ((r = file_create(path, &f, sys_time_msec())) < 0) {
 			if (!(req->req_omode & O_EXCL) && r == -E_FILE_EXISTS)
 				goto try_open;
 			if (debug)
@@ -303,7 +303,7 @@ serve_flush(envid_t envid, struct Fsreq_flush *req)
 
 	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
 		return r;
-	file_flush(o->o_file, 0);
+	file_flush(o->o_file, sys_time_msec());
 	return 0;
 }
 
