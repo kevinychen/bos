@@ -83,7 +83,6 @@ union Fsipc {
 	struct Fsreq_open {
 		char req_path[MAXPATHLEN];
 		int req_omode;
-        time_t req_timestamp;
 	} open;
 	struct Fsreq_set_size {
 		int req_fileid;
@@ -99,8 +98,7 @@ union Fsipc {
 	struct Fsreq_write {
 		int req_fileid;
 		size_t req_n;
-        time_t req_timestamp;
-		char req_buf[PGSIZE - (sizeof(int) + sizeof(size_t) + sizeof(time_t))];
+		char req_buf[PGSIZE - (sizeof(int) + sizeof(size_t))];
 	} write;
 	struct Fsreq_stat {
 		int req_fileid;

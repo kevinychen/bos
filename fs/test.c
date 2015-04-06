@@ -43,7 +43,7 @@ fs_test(void)
 
 	*(volatile char*)blk = *(volatile char*)blk;
 	assert((uvpt[PGNUM(blk)] & PTE_D));
-	file_flush(f);
+	file_flush(f, 0);
 	assert(!(uvpt[PGNUM(blk)] & PTE_D));
 	cprintf("file_flush is good\n");
 
@@ -60,7 +60,7 @@ fs_test(void)
 		panic("file_get_block 2: %e", r);
 	strcpy(blk, msg);
 	assert((uvpt[PGNUM(blk)] & PTE_D));
-	file_flush(f);
+	file_flush(f, 0);
 	assert(!(uvpt[PGNUM(blk)] & PTE_D));
 	assert(!(uvpt[PGNUM(f)] & PTE_D));
 	cprintf("file rewrite is good\n");

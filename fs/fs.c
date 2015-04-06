@@ -212,22 +212,6 @@ copy_block(void *blk)
     return new_blockno;
 }
 
-// Write the data in buf to a new copy of the block at blockno.
-int
-write_block(uint32_t *blockno, const void *buf, size_t count, off_t offset)
-{
-    char *blk = diskaddr(*blockno);
-
-    int new_blockno = copy_block(blk);
-    if (new_blockno < 0)
-        return new_blockno;
-    *blockno = new_blockno;
-
-    char *new_blk = diskaddr(new_blockno);
-    memmove(new_blk + offset, buf, count);
-    return 0;
-}
-
 // Try to find a file named "name" in dir.  If so, set *file to it.
 //
 // Returns 0 and sets *file on success, < 0 on error.  Errors are:
@@ -379,7 +363,7 @@ file_create(const char *path, struct File **pf, time_t timestamp)
     f->f_timestamp = timestamp;
 
 	*pf = f;
-	file_flush(dir);
+	file_flush(dir, timestamp);
 	return 0;
 }
 
@@ -424,20 +408,11 @@ file_read(struct File *f, void *buf, size_t count, off_t offset)
 // Extends the file if necessary.
 // Returns the number of bytes written, < 0 on error.
 int
-file_write(struct File *f, const void *buf, size_t count, off_t offset, time_t timestamp)
+file_write(struct File *f, const void *buf, size_t count, off_t offset)
 {
 	int r, bn;
 	off_t pos;
 	char *blk;
-
-    // Copy file struct: F -> F2 -> ... to F -> F' -> F2 -> ...
-    int blockno = copy_block(f);
-    if (blockno < 0)
-        return blockno;
-
-    // Update current file
-    f->f_next_file = blockno;
-    f->f_timestamp = timestamp;
 
 	// Extend file if necessary
 	if (offset + count > f->f_size)
@@ -448,8 +423,23 @@ file_write(struct File *f, const void *buf, size_t count, off_t offset, time_t t
         uint32_t *diskbno;
         if ((r = file_get_diskbno(f, pos / BLKSIZE, &diskbno)) < 0)
             return r;
+
+        // if diskbno is the same as diskbno of previous file, copy block.
+        if (f->f_next_file) {
+            uint32_t *next_diskbno;
+            struct File *next_file = (struct File*) diskaddr(f->f_next_file);
+            if ((r = file_get_diskbno(next_file, pos / BLKSIZE, &next_diskbno)) < 0)
+                return r;
+            if (*diskbno == *next_diskbno) {
+                int new_blockno = copy_block(diskaddr(*diskbno));
+                if (new_blockno < 0)
+                    return new_blockno;
+                *diskbno = new_blockno;
+            }
+        }
+
 		bn = MIN(BLKSIZE - pos % BLKSIZE, offset + count - pos);
-        write_block(diskbno, buf, bn, pos % BLKSIZE);
+        memmove(diskaddr(*diskbno) + pos % BLKSIZE, buf, bn);
 		pos += bn;
 		buf += bn;
 	}
@@ -537,10 +527,19 @@ file_set_size(struct File *f, off_t newsize)
 // Translate the file block number into a disk block number
 // and then check whether that disk block is dirty.  If so, write it out.
 void
-file_flush(struct File *f)
+file_flush(struct File *f, time_t timestamp)
 {
 	int i;
 	uint32_t *pdiskbno;
+
+    // Copy file struct: F -> F2 -> ... to F -> F' -> F2 -> ...
+    int blockno = copy_block(f);
+    if (blockno < 0)
+        panic("out of memory in file_flush");
+
+    // Update current file
+    f->f_next_file = blockno;
+    f->f_timestamp = timestamp;
 
 	for (i = 0; i < (f->f_size + BLKSIZE - 1) / BLKSIZE; i++) {
 		if (file_block_walk(f, i, &pdiskbno, 0) < 0 ||
