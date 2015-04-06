@@ -177,7 +177,7 @@ devfile_history(struct Fd *fd, time_t *buf, size_t n, off_t offset)
     fsipcbuf.history.req_offset = offset;
     if ((r = fsipc(FSREQ_HISTORY, NULL)) < 0)
         return r;
-	memmove(buf, fsipcbuf.readRet.ret_buf, r);
+	memmove(buf, fsipcbuf.readRet.ret_buf, r * sizeof(time_t));
     return r;
 }
 
