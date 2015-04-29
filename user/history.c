@@ -8,11 +8,11 @@ list_history(int f, char *s)
     long n;
     int r, i;
 
-    n = history(f, buf, PGSIZE / sizeof(time_t), 0);
+    n = history(f, buf, PGSIZE / sizeof(time_t) / 8, 0);
     if (n < 0)
         panic("error getting history of %s: %e", s, n);
     for (i = 0; i < n; i++)
-        printf("i=%d: time %u\n", i, buf[i]);
+        printf("i=%d: time %lld\n", i, buf[i]);
 }
 
 void
