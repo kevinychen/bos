@@ -344,12 +344,13 @@ walk_path(const char *path, struct File **pdir, struct File **pf, char *lastelem
 // Create "path".  On success set *pf to point at the file and return 0.
 // On error return < 0.
 int
-file_create(const char *path, struct File **pf, time_t timestamp)
+file_create(const char *path, struct File **pf)
 {
 	char name[MAXNAMELEN];
 	int r;
 	struct File *dir, *f;
 
+    time_t timestamp = sys_time_msec();
 	if ((r = walk_path(path, &dir, &f, name)) == 0)
 		return -E_FILE_EXISTS;
 	if (r != -E_NOT_FOUND || dir == 0)
@@ -437,7 +438,6 @@ file_write(struct File *f, const void *buf, size_t count, off_t offset)
                     return new_blockno;
                 *diskbno = new_blockno;
             }
-            f->f_dirty = true;
         }
 
 		bn = MIN(BLKSIZE - pos % BLKSIZE, offset + count - pos);
@@ -446,6 +446,7 @@ file_write(struct File *f, const void *buf, size_t count, off_t offset)
 		buf += bn;
 	}
 
+    f->f_dirty = true;
 	return count;
 }
 
@@ -453,6 +454,8 @@ int
 file_history(struct File *f, time_t *buf, size_t count, off_t offset)
 {
     time_t *buf_ptr = buf;
+    if (!f->f_dirty && f->f_next_file)
+        f = (struct File*) diskaddr(f->f_next_file);
     while (f) {
         if (offset)
             offset--;
@@ -536,6 +539,7 @@ file_flush(struct File *f, time_t timestamp)
 
     if (f->f_dirty) {
         f->f_dirty = false;
+        f->f_timestamp = timestamp;
 
         // Copy file struct: F -> F2 -> ... to F -> F' -> F2 -> ...
         int blockno = copy_block(f);
@@ -544,7 +548,6 @@ file_flush(struct File *f, time_t timestamp)
 
         // Update current file
         f->f_next_file = blockno;
-        f->f_timestamp = timestamp;
 
         // Flush copied file
         flush_block(diskaddr(blockno));
