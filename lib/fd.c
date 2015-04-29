@@ -325,9 +325,15 @@ fstat(int fdnum, struct Stat *stat)
 int
 stat(const char *path, struct Stat *stat)
 {
+    return time_stat(path, ~0, stat);
+}
+
+int
+time_stat(const char *path, const time_t timestamp, struct Stat *stat)
+{
 	int fd, r;
 
-	if ((fd = open(path, O_RDONLY)) < 0)
+	if ((fd = time_open(path, timestamp, O_RDONLY)) < 0)
 		return fd;
 	r = fstat(fd, stat);
 	close(fd);

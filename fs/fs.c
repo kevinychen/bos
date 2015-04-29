@@ -281,6 +281,30 @@ skip_slash(const char *p)
 	return p;
 }
 
+static time_t
+get_timestamp_from_path(const char *p)
+{
+    while (*p && *p != '@')
+        p++;
+    if (*p)
+        return strtol(++p, NULL, 10);
+    else
+        return sys_time_msec();
+}
+
+// Find correct time version of a file.
+static int
+find_time_version(const time_t timestamp, struct File **f)
+{
+    while ((*f)->f_timestamp > timestamp) {
+        if ((*f)->f_next_file)
+            *f = (struct File*) diskaddr((*f)->f_next_file);
+        else
+            return -E_NOT_FOUND;
+    }
+    return 0;
+}
+
 // Evaluate a path name, starting at the root.
 // On success, set *pf to the file we found
 // and set *pdir to the directory the file is in.
@@ -294,21 +318,28 @@ walk_path(const char *path, struct File **pdir, struct File **pf, char *lastelem
 	char name[MAXNAMELEN];
 	struct File *dir, *f;
 	int r;
+    time_t timestamp;
 
 	// if (*path != '/')
 	//	return -E_BAD_PATH;
 	path = skip_slash(path);
+    timestamp = get_timestamp_from_path(path);
+
+    // Find the correct time version of root
 	f = &super->s_root;
+    if ((r = find_time_version(timestamp, &f)) < 0)
+        return r;
+
 	dir = 0;
 	name[0] = 0;
 
 	if (pdir)
 		*pdir = 0;
 	*pf = 0;
-	while (*path != '\0') {
+	while (*path != '\0' && *path != '@') {
 		dir = f;
 		p = path;
-		while (*path != '/' && *path != '\0')
+		while (*path != '/' && *path != '\0' && *path != '@')
 			path++;
 		if (path - p >= MAXNAMELEN)
 			return -E_BAD_PATH;
@@ -320,7 +351,7 @@ walk_path(const char *path, struct File **pdir, struct File **pf, char *lastelem
 			return -E_NOT_FOUND;
 
 		if ((r = dir_lookup(dir, name, &f)) < 0) {
-			if (r == -E_NOT_FOUND && *path == '\0') {
+			if (r == -E_NOT_FOUND && (*path == '\0' || *path == '@')) {
 				if (pdir)
 					*pdir = dir;
 				if (lastelem)
@@ -329,6 +360,8 @@ walk_path(const char *path, struct File **pdir, struct File **pf, char *lastelem
 			}
 			return r;
 		}
+        if ((r = find_time_version(timestamp, &f)) < 0)
+            return r;
 	}
 
 	if (pdir)

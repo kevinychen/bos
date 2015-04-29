@@ -56,6 +56,13 @@ struct Dev devfile =
 int
 open(const char *path, int mode)
 {
+    return time_open(path, ~0, mode);
+}
+
+// Open a file (or directory) at a specified time.
+int
+time_open(const char *path, const time_t timestamp, int mode)
+{
 	// Find an unused file descriptor page using fd_alloc.
 	// Then send a file-open request to the file server.
 	// Include 'path' and 'omode' in request,
@@ -80,6 +87,7 @@ open(const char *path, int mode)
 		return r;
 
 	strcpy(fsipcbuf.open.req_path, path);
+    fsipcbuf.open.req_timestamp = timestamp;
 	fsipcbuf.open.req_omode = mode;
 
 	if ((r = fsipc(FSREQ_OPEN, fd)) < 0) {

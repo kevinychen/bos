@@ -83,6 +83,7 @@ enum {
 union Fsipc {
 	struct Fsreq_open {
 		char req_path[MAXPATHLEN];
+        time_t req_timestamp;
 		int req_omode;
 	} open;
 	struct Fsreq_set_size {

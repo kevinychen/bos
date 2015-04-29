@@ -100,9 +100,11 @@ ssize_t	readn(int fd, void *buf, size_t nbytes);
 int	dup(int oldfd, int newfd);
 int	fstat(int fd, struct Stat *statbuf);
 int	stat(const char *path, struct Stat *statbuf);
+int	time_stat(const char *path, const time_t timestamp, struct Stat *statbuf);
 
 // file.c
 int	open(const char *path, int mode);
+int	time_open(const char *path, const time_t timestamp, int mode);
 int	ftruncate(int fd, off_t size);
 int	remove(const char *path);
 int	sync(void);
