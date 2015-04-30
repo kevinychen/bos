@@ -377,7 +377,7 @@ walk_path(const char *path, struct File **pdir, struct File **pf, char *lastelem
 // Create "path".  On success set *pf to point at the file and return 0.
 // On error return < 0.
 int
-file_create(const char *path, struct File **pf)
+file_create(const char *path, bool isdir, struct File **pf)
 {
 	char name[MAXNAMELEN];
 	int r;
@@ -393,11 +393,13 @@ file_create(const char *path, struct File **pf)
 
 	strcpy(f->f_name, name);
     file_set_size(f, 0);
+    f->f_type = isdir ? FTYPE_DIR : FTYPE_REG;
     f->f_next_file = 0;
     f->f_timestamp = timestamp;
     f->f_dirty = true;
 
 	*pf = f;
+    dir->f_dirty = true;
 	file_flush(dir, timestamp);
 	return 0;
 }
@@ -567,6 +569,7 @@ file_set_size(struct File *f, off_t newsize)
 void
 file_flush(struct File *f, time_t timestamp)
 {
+    cprintf("flushing %s\n", f->f_name);
 	int i;
 	uint32_t *pdiskbno;
 

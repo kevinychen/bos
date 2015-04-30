@@ -22,6 +22,7 @@ USERAPPS :=		$(USERAPPS) \
 			$(OBJDIR)/user/init \
 			$(OBJDIR)/user/ls \
 			$(OBJDIR)/user/lsfd \
+			$(OBJDIR)/user/mkdir \
 			$(OBJDIR)/user/num \
 			$(OBJDIR)/user/forktree \
 			$(OBJDIR)/user/primes \
