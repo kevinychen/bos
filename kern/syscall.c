@@ -86,6 +86,7 @@ sys_exofork(void)
     env_store->env_status = ENV_NOT_RUNNABLE;
     env_store->env_tf = curenv->env_tf;
     env_store->env_tf.tf_regs.reg_eax = 0;
+    strcpy(env_store->env_cwd, curenv->env_cwd);
     return env_store->env_id;
 }
 
@@ -279,6 +280,14 @@ sys_page_unmap(envid_t envid, void *va)
     return 0;
 }
 
+// Set the current working directory of the current environment.
+static int
+sys_chdir(const char *path)
+{
+    strcpy(curenv->env_cwd, path);
+    return 0;
+}
+
 // Try to send 'value' to the target env 'envid'.
 // If srcva < UTOP, then also send page currently mapped at 'srcva',
 // so that receiver gets a duplicate mapping of the same page.
@@ -460,6 +469,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
                     (envid_t) a3, (void*) a4, (int) a5);
         case SYS_page_unmap:
             return sys_page_unmap((envid_t) a1, (void*) a2);
+        case SYS_chdir:
+            return sys_chdir((const char*) a1);
         case SYS_exofork:
             return sys_exofork();
         case SYS_env_set_status:

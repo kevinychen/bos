@@ -311,6 +311,19 @@ umain(int argc, char **argv)
 			continue;
 		if (echocmds)
 			printf("# %s\n", buf);
+        if (buf[0] == 'c' && buf[1] == 'd' &&
+                (buf[2] == '\0' || strchr(WHITESPACE, buf[2]))) {
+            // Check for special case cd command.
+            const char *path = buf[2] == '\0' ? "/" : buf + 3;
+            struct Stat st;
+            if ((r = stat(path, &st)) < 0)
+                cprintf("cd: no such directory\n");
+            else if (!st.st_isdir)
+                cprintf("cd: not a directory\n");
+            else
+                sys_chdir(path);
+            continue;
+        }
 		if (debug)
 			cprintf("BEFORE FORK\n");
 		if ((r = fork()) < 0)

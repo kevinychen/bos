@@ -85,6 +85,12 @@ sys_page_unmap(envid_t envid, void *va)
 	return syscall(SYS_page_unmap, 1, envid, (uint32_t) va, 0, 0, 0);
 }
 
+int
+sys_chdir(const char *path)
+{
+    return syscall(SYS_chdir, 1, (uint32_t) path, 0, 0, 0, 0);
+}
+
 // sys_exofork is inlined in lib.h
 
 int

@@ -27,6 +27,7 @@ USERAPPS :=		$(USERAPPS) \
 			$(OBJDIR)/user/forktree \
 			$(OBJDIR)/user/primes \
 			$(OBJDIR)/user/primespipe \
+			$(OBJDIR)/user/pwd \
 			$(OBJDIR)/user/sh \
 			$(OBJDIR)/user/testfdsharing \
 			$(OBJDIR)/user/testkbd \

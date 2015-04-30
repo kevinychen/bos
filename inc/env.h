@@ -6,6 +6,7 @@
 #include <inc/types.h>
 #include <inc/trap.h>
 #include <inc/memlayout.h>
+#include <inc/fs.h>
 
 typedef int32_t envid_t;
 
@@ -54,6 +55,7 @@ struct Env {
 	unsigned env_status;		// Status of the environment
 	uint32_t env_runs;		// Number of times environment has run
 	int env_cpunum;			// The CPU that the env is running on
+    char env_cwd[MAXPATHLEN];		// Current working directory
 
 	// Address space
 	pde_t *env_pgdir;		// Kernel virtual address of page dir
