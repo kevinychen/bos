@@ -412,8 +412,7 @@ parse_relative_time(const char *str, time_t current)
 
 // Convert string to rtcdate.
 // Forms:
-//   c[time]
-//   YYYY (ISO)
+//   [time]
 //   YYYY-MM (ISO)
 //   YYYY-MM-DD (ISO)
 //   YYYY-MM-DDThh:mm (ISO)
@@ -430,10 +429,10 @@ parse_time(const char *str, time_t current)
 
     if (*str == '\0')
         return current;
-    if (*str == 'c') {
-        // form c[time]
-        time = strtol(str + 1, &endptr, 10);
-        return *endptr == 0 ? time : 0;
+    time = strtol(str, &endptr, 10);
+    if (*endptr == '\0') {
+        // form [time]
+        return time;
     }
     if ((time = parse_relative_time(str, current))) {
         // form [time][unit]
@@ -444,10 +443,6 @@ parse_time(const char *str, time_t current)
     r.year = r.month = r.day = r.hour = r.minute = r.second = 0;
 
     r.year = strtol(str, &endptr, 10);
-    if (*endptr == '\0') {
-        // form YYYY
-        return rtcdate_to_time(&r);
-    }
     if (*endptr != '-')
         return 0;
 
