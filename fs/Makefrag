@@ -11,6 +11,7 @@ USERAPPS := 		$(OBJDIR)/user/init
 
 USERAPPS :=		$(USERAPPS) \
 			$(OBJDIR)/user/cat \
+			$(OBJDIR)/user/cp \
 			$(OBJDIR)/user/diff \
 			$(OBJDIR)/user/echo \
 			$(OBJDIR)/user/history \

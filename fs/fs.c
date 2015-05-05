@@ -286,7 +286,9 @@ get_timestamp_from_path(const char *p)
 {
     while (*p && *p != '@')
         p++;
-    return parse_time(p + 1, sys_time_msec());
+    if (*p == '@')
+        p++;
+    return parse_time(p, sys_time_msec());
 }
 
 // Find correct time version of a file.
@@ -521,39 +523,10 @@ file_free_block(struct File *f, uint32_t filebno)
 	return 0;
 }
 
-// Remove any blocks currently used by file 'f',
-// but not necessary for a file of size 'newsize'.
-// For both the old and new sizes, figure out the number of blocks required,
-// and then clear the blocks from new_nblocks to old_nblocks.
-// If the new_nblocks is no more than NDIRECT, and the indirect block has
-// been allocated (f->f_indirect != 0), then free the indirect block too.
-// (Remember to clear the f->f_indirect pointer so you'll know
-// whether it's valid!)
-// Do not change f->f_size.
-static void
-file_truncate_blocks(struct File *f, off_t newsize)
-{
-	int r;
-	uint32_t bno, old_nblocks, new_nblocks;
-
-	old_nblocks = (f->f_size + BLKSIZE - 1) / BLKSIZE;
-	new_nblocks = (newsize + BLKSIZE - 1) / BLKSIZE;
-	for (bno = new_nblocks; bno < old_nblocks; bno++)
-		if ((r = file_free_block(f, bno)) < 0)
-			cprintf("warning: file_free_block: %e", r);
-
-	if (new_nblocks <= NDIRECT && f->f_indirect) {
-		free_block(f->f_indirect);
-		f->f_indirect = 0;
-	}
-}
-
 // Set the size of file f, truncating or extending as necessary.
 int
 file_set_size(struct File *f, off_t newsize)
 {
-	if (f->f_size > newsize)
-		file_truncate_blocks(f, newsize);
 	f->f_size = newsize;
 	flush_block(f);
 	return 0;
