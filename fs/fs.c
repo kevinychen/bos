@@ -286,10 +286,7 @@ get_timestamp_from_path(const char *p)
 {
     while (*p && *p != '@')
         p++;
-    if (*p)
-        return strtol(++p, NULL, 10);
-    else
-        return sys_time_msec();
+    return parse_time(p + 1, sys_time_msec());
 }
 
 // Find correct time version of a file.
@@ -569,7 +566,6 @@ file_set_size(struct File *f, off_t newsize)
 void
 file_flush(struct File *f, time_t timestamp)
 {
-    cprintf("flushing %s\n", f->f_name);
 	int i;
 	uint32_t *pdiskbno;
 

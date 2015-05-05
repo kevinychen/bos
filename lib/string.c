@@ -1,6 +1,8 @@
 // Basic string routines.  Not hardware optimized, but not shabby.
 
 #include <inc/string.h>
+#include <inc/stdio.h>
+
 
 // Using assembly for memset/memmove
 // makes some difference on real hardware,
@@ -281,5 +283,219 @@ strtol(const char *s, char **endptr, int base)
 	if (endptr)
 		*endptr = (char *) s;
 	return (neg ? -val : val);
+}
+
+// Convert rtcdate to time, in sec after 2000
+time_t
+rtcdate_to_time(struct rtcdate *r)
+{
+    time_t val = 0, year;
+
+    for (year = 0; year < r->year % 100; year++)
+        val += 365 + (year % 4 == 0);
+
+    switch (r->month - 1) {
+        case 11: val += 30;
+        case 10: val += 31;
+        case 9: val += 30;
+        case 8: val += 31;
+        case 7: val += 31;
+        case 6: val += 30;
+        case 5: val += 31;
+        case 4: val += 30;
+        case 3: val += 31;
+        case 2: val += 28 + (r->year % 4 == 0);
+        case 1: val += 31;
+    }
+
+    val += r->day - 1;
+    val = 24 * val + r->hour;
+    val = 60 * val + r->minute;
+    val = 60 * val + r->second;
+
+    return val;
+}
+
+// Convert time to rtcdate
+void
+time_to_rtcdate(time_t time, struct rtcdate *r)
+{
+    r->second = time % 60;
+    time /= 60;
+    r->minute = time % 60;
+    time /= 60;
+    r->hour = time % 24;
+    time /= 24;
+
+    // mod by number of days in 400 years
+    time %= 400 * 365 + 100 - 4 + 1;
+
+    r->year = 2000;
+    while (365 + (r->year % 4 == 0) <= time) {
+        time -= 365 + (r->year % 4 == 0);
+        r->year++;
+    }
+
+    time_t DAYS_IN_MONTH[] =
+        {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    DAYS_IN_MONTH[1] += r->year % 4 == 0;
+
+    r->month = 1;
+    while (time > DAYS_IN_MONTH[r->month])
+        time -= DAYS_IN_MONTH[r->month++];
+
+    r->day = time + 1;
+}
+
+static time_t
+subtract_time(time_t time, char type, time_t val, struct rtcdate *r)
+{
+    time_t mult = 1;
+    int newVal;
+
+    switch (type) {
+        case 'y':
+        case 'Y':
+            r->year += 100 * (val > r->year) - val % 100;
+            mult = 0;
+            break;
+        case 'n':  // month
+        case 'N':
+            newVal = val / 12 + (val >= r->month);
+            if ((time = subtract_time(time, 'y', newVal, r)) == 0)
+                return time;
+            r->month += 12 * (val >= r->month) - val % 12;
+            mult = 0;
+            break;
+        case 'd':
+        case 'D':
+            mult *= 24;
+        case 'h':
+        case 'H':
+            mult *= 60;
+        case 'm':
+        case 'M':
+            mult *= 60;
+        case 's':
+        case 'S':
+            break;
+        default:
+            return 0;
+    }
+
+    time -= mult * val;
+    time_to_rtcdate(time, r);
+    return time;
+}
+
+static time_t
+parse_relative_time(const char *str, time_t current)
+{
+    // Parse [time][unit][time][unit]...
+    //   e.g. 5s, 2m, 2m5s
+    struct rtcdate r;
+    time_to_rtcdate(current, &r);
+
+    char *endptr;
+    do {
+        long val = strtol(str, &endptr, 10);
+        if (!strchr("smhdny", *endptr))
+            return 0;
+        if ((current = subtract_time(current, *endptr, val, &r)) == 0)
+            return 0;
+        str = endptr + 1;
+    }
+    while (*str);
+
+    return current;
+}
+
+// Convert string to rtcdate.
+// Forms:
+//   c[time]
+//   YYYY (ISO)
+//   YYYY-MM (ISO)
+//   YYYY-MM-DD (ISO)
+//   YYYY-MM-DDThh:mm (ISO)
+//   YYYY-MM-DDThh:mm:ss (ISO)
+//   YYYY-MM-DDThh:mm[A/P]M
+//   YYYY-MM-DDThh:mm:ss[A/P]M
+//   [time][unit] (e.g. 5s, 2m)
+// Returns 0 on error, or time on success
+time_t
+parse_time(const char *str, time_t current)
+{
+    char *endptr;
+    time_t time;
+
+    if (*str == '\0')
+        return current;
+    if (*str == 'c') {
+        // form c[time]
+        time = strtol(str + 1, &endptr, 10);
+        return *endptr == 0 ? time : 0;
+    }
+    if ((time = parse_relative_time(str, current))) {
+        // form [time][unit]
+        return time;
+    }
+
+    struct rtcdate r;
+    r.year = r.month = r.day = r.hour = r.minute = r.second = 0;
+
+    r.year = strtol(str, &endptr, 10);
+    if (*endptr == '\0') {
+        // form YYYY
+        return rtcdate_to_time(&r);
+    }
+    if (*endptr != '-')
+        return 0;
+
+    str = endptr + 1;
+    r.month = strtol(str, &endptr, 10);
+    if (*endptr == '\0') {
+        // form YYYY-MM
+        return rtcdate_to_time(&r);
+    }
+    if (*endptr != '-')
+        return 0;
+
+    str = endptr + 1;
+    r.day = strtol(str, &endptr, 10);
+    if (*endptr == '\0') {
+        // form YYYY-MM-DD
+        return rtcdate_to_time(&r);
+    }
+    
+    str = endptr + 1;
+    r.hour = strtol(str, &endptr, 10);
+    if (*endptr != ':')
+        return 0;
+
+    str = endptr + 1;
+    r.minute = strtol(str, &endptr, 10);
+    if (*endptr == '\0') {
+        // form YYYY-MM-DDThh:mm
+        return rtcdate_to_time(&r);
+    }
+
+    if (*endptr == ':') {
+        str = endptr + 1;
+        r.second = strtol(str, &endptr, 10);
+        if (*endptr == '\0') {
+            // form YYYY-MM-DDThh:mm:ss
+            return rtcdate_to_time(&r);
+        }
+    }
+
+    if (strchr("AP", *endptr) && *(endptr + 1) == 'M'
+            && *(endptr + 2) == '\0') {
+        // form YYYY-MM-DDThh:mm[A/P]M
+        if ((*endptr == 'A') ^ (r.hour % 12))
+            r.hour = (r.hour + 12) % 24;
+        return rtcdate_to_time(&r);
+    }
+
+    return 0;
 }
 

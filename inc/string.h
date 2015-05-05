@@ -22,4 +22,17 @@ void *	memfind(const void *s, int c, size_t len);
 
 long	strtol(const char *s, char **endptr, int base);
 
+struct rtcdate {
+	uint32_t second;
+	uint32_t minute;
+	uint32_t hour;
+	uint32_t day;
+	uint32_t month;
+	uint32_t year;
+};
+
+time_t rtcdate_to_time(struct rtcdate*);
+void time_to_rtcdate(time_t time, struct rtcdate*);
+time_t parse_time(const char *str, time_t current);
+
 #endif /* not JOS_INC_STRING_H */
