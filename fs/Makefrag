@@ -9,12 +9,6 @@ FSOFILES := 		$(OBJDIR)/fs/ide.o \
 
 USERAPPS := 		$(OBJDIR)/user/init
 
-FSIMGTXTFILES :=	fs/newmotd \
-			fs/motd
-
-FSIMGTXTFILES :=	$(FSIMGTXTFILES) \
-			fs/index.html
-
 USERAPPS :=		$(USERAPPS) \
 			$(OBJDIR)/user/cat \
 			$(OBJDIR)/user/echo \
@@ -24,23 +18,12 @@ USERAPPS :=		$(USERAPPS) \
 			$(OBJDIR)/user/lsfd \
 			$(OBJDIR)/user/mkdir \
 			$(OBJDIR)/user/num \
-			$(OBJDIR)/user/forktree \
-			$(OBJDIR)/user/primes \
-			$(OBJDIR)/user/primespipe \
 			$(OBJDIR)/user/pwd \
-			$(OBJDIR)/user/sh \
-			$(OBJDIR)/user/testfdsharing \
-			$(OBJDIR)/user/testkbd \
-			$(OBJDIR)/user/testpipe \
-			$(OBJDIR)/user/testpteshare \
-			$(OBJDIR)/user/testshell \
-			$(OBJDIR)/user/hello \
+			$(OBJDIR)/user/sh
 
-FSIMGTXTFILES :=	$(FSIMGTXTFILES) \
+FSIMGTXTFILES :=	fs/motd \
 			fs/lorem \
-			fs/script \
-			fs/testshell.key \
-			fs/testshell.sh
+			fs/script
 
 
 FSIMGFILES := $(FSIMGTXTFILES) $(USERAPPS)
