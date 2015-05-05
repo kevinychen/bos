@@ -202,14 +202,25 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 
 // Copies blk to a newly allocated block.
 int
-copy_block(void *blk)
+copy_block(struct File *f, int i, uint32_t *diskbno)
 {
-    // Copy the block
-    int new_blockno = alloc_block();
-    if (new_blockno < 0)
-        return new_blockno;
-    memcpy(diskaddr(new_blockno), blk, BLKSIZE);
-    return new_blockno;
+    int r;
+
+    // if diskbno is the same as diskbno of previous file, copy block.
+    if (f->f_next_file) {
+        uint32_t *next_diskbno;
+        if ((r = file_get_diskbno(f->f_next_file, i, &next_diskbno)) < 0)
+            return r;
+        if (*diskbno == *next_diskbno) {
+            int new_blockno = alloc_block();
+            if (new_blockno < 0)
+                return new_blockno;
+            void *blk = ROUNDDOWN(diskaddr(*diskbno), BLKSIZE);
+            memcpy(diskaddr(new_blockno), blk, BLKSIZE);
+            *diskbno = new_blockno;
+        }
+    }
+    return 0;
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.
@@ -278,21 +289,26 @@ dir_alloc_file(struct File *dir, struct File **file)
 	assert((dir->f_size % BLKSIZE) == 0);
 	nblock = dir->f_size / BLKSIZE;
 	for (i = 0; i < nblock; i++) {
-		if ((r = file_get_block(dir, i, &blk)) < 0)
-			return r;
-		f = (struct File*) blk;
-		for (j = 0; j < BLKFILES; j++)
-			if (f[j].f_name[0] == '\0') {
-				*file = &f[j];
-				return 0;
-			}
-	}
-	dir->f_size += BLKSIZE;
-	if ((r = file_get_block(dir, i, &blk)) < 0)
-		return r;
-	f = (struct File*) blk;
-	*file = &f[0];
-	return 0;
+        uint32_t *diskbno;
+        if ((r = file_get_diskbno(dir, i, &diskbno)) < 0)
+            return r;
+
+        f = (struct File*) diskaddr(*diskbno);
+        for (j = 0; j < BLKFILES; j++)
+            if (f[j].f_name[0] == '\0') {
+                copy_block(dir, i, diskbno);
+                *file = ((struct File*) diskaddr(*diskbno)) + j;
+                break;
+            }
+    }
+    if (i == nblock) {
+        dir->f_size += BLKSIZE;
+        if ((r = file_get_block(dir, nblock, &blk)) < 0)
+            return r;
+        *file = (struct File*) blk;
+    }
+    dir->f_dirty = true;
+    return 0;
 }
 
 // Skip over slashes.
@@ -420,7 +436,6 @@ file_create(const char *path, bool isdir, struct File **pf)
     f->f_dirty = true;
 
 	*pf = f;
-    dir->f_dirty = true;
 	file_flush(dir, timestamp);
 	return 0;
 }
@@ -481,21 +496,7 @@ file_write(struct File *f, const void *buf, size_t count, off_t offset)
         uint32_t *diskbno;
         if ((r = file_get_diskbno(f, pos / BLKSIZE, &diskbno)) < 0)
             return r;
-
-        // if diskbno is the same as diskbno of previous file, copy block.
-        if (f->f_next_file) {
-            uint32_t *next_diskbno;
-            if ((r = file_get_diskbno(f->f_next_file,
-                            pos / BLKSIZE, &next_diskbno)) < 0) {
-                return r;
-            }
-            if (*diskbno == *next_diskbno) {
-                int new_blockno = copy_block(diskaddr(*diskbno));
-                if (new_blockno < 0)
-                    return new_blockno;
-                *diskbno = new_blockno;
-            }
-        }
+        copy_block(f, pos / BLKSIZE, diskbno);
 
 		bn = MIN(BLKSIZE - pos % BLKSIZE, offset + count - pos);
         memmove(diskaddr(*diskbno) + pos % BLKSIZE, buf, bn);
