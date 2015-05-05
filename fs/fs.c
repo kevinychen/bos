@@ -311,6 +311,33 @@ dir_alloc_file(struct File *dir, struct File **file)
     return 0;
 }
 
+// Remove file from dir.
+static int
+dir_remove_file(struct File *dir, struct File *file)
+{
+    int r;
+    uint32_t nblock, i, j;
+    struct File *f;
+
+    assert((dir->f_size % BLKSIZE) == 0);
+    nblock = dir->f_size / BLKSIZE;
+    for (i = 0; i < nblock; i++) {
+        uint32_t *diskbno;
+        if ((r = file_get_diskbno(dir, i, &diskbno)) < 0)
+            return r;
+
+        f = (struct File*) diskaddr(*diskbno);
+        for (j = 0; j < BLKFILES; j++)
+            if (strcmp(f[j].f_name, file->f_name) == 0) {
+                copy_block(dir, i, diskbno);
+                ((struct File*) diskaddr(*diskbno))[j].f_name[0] = '\0';
+                dir->f_dirty = true;
+                return 0;
+            }
+    }
+    return -E_NOT_FOUND;
+}
+
 // Skip over slashes.
 static const char*
 skip_slash(const char *p)
@@ -587,6 +614,23 @@ file_flush(struct File *f, time_t timestamp)
 	flush_block(f);
 	if (f->f_indirect)
 		flush_block(diskaddr(f->f_indirect));
+}
+
+int
+file_remove(const char *path)
+{
+    int r;
+    struct File *dir, *f;
+
+    time_t timestamp = sys_time_msec();
+    if ((r = walk_path(path, &dir, &f, NULL)) < 0)
+        return r;
+    if (dir == NULL)
+        return -E_BAD_PATH;
+    dir_remove_file(dir, f);
+
+    file_flush(dir, timestamp);
+    return 0;
 }
 
 

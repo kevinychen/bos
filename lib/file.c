@@ -98,6 +98,21 @@ time_open(const char *path, const time_t timestamp, int mode)
 	return fd2num(fd);
 }
 
+int
+remove(const char *path)
+{
+    int r;
+
+    if (strlen(path) >= MAXPATHLEN)
+        return -E_BAD_PATH;
+
+    strcpy(fsipcbuf.remove.req_path, path);
+    if ((r = fsipc(FSREQ_REMOVE, NULL)) < 0)
+        return r;
+
+    return 0;
+}
+
 // Flush the file descriptor.  After this the fileid is invalid.
 //
 // This function is called by fd_close.  fd_close will take care of

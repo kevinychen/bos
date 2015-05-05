@@ -21,6 +21,7 @@ USERAPPS :=		$(USERAPPS) \
 			$(OBJDIR)/user/mkdir \
 			$(OBJDIR)/user/num \
 			$(OBJDIR)/user/pwd \
+			$(OBJDIR)/user/rm \
 			$(OBJDIR)/user/sh
 
 FSIMGTXTFILES :=	fs/motd \

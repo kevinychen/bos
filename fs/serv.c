@@ -307,6 +307,18 @@ serve_flush(envid_t envid, struct Fsreq_flush *req)
 	return 0;
 }
 
+int
+serve_remove(envid_t envid, struct Fsreq_remove *req)
+{
+	struct OpenFile *o;
+	int r;
+
+	if (debug)
+		cprintf("serve_remove %08x %s\n", envid, req->req_path);
+
+	return file_remove(req->req_path);
+}
+
 
 int
 serve_sync(envid_t envid, union Fsipc *req)
@@ -326,6 +338,7 @@ fshandler handlers[] = {
 	[FSREQ_FLUSH] =		(fshandler)serve_flush,
 	[FSREQ_WRITE] =		(fshandler)serve_write,
 	[FSREQ_SET_SIZE] =	(fshandler)serve_set_size,
+	[FSREQ_REMOVE] =	(fshandler)serve_remove,
 	[FSREQ_SYNC] =		serve_sync
 };
 #define NHANDLERS (sizeof(handlers)/sizeof(handlers[0]))
