@@ -12,7 +12,7 @@ list_history(int f, char *s)
     if (n < 0)
         panic("error getting history of %s: %e", s, n);
     for (i = 0; i < n; i++)
-        printf("i=%d: time %lld\n", i, buf[i]);
+        printf("%s@%lld\n", s, buf[i]);
 }
 
 void
