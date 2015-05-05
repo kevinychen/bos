@@ -242,6 +242,29 @@ dir_lookup(struct File *dir, const char *name, struct File **file)
 	return -E_NOT_FOUND;
 }
 
+static int
+alloc_file(struct File **file)
+{
+    static struct File *f = NULL;
+    int i;
+
+    if (f == NULL) {
+        int blockno = alloc_block();
+        if (blockno < 0)
+            return blockno;
+        f = diskaddr(blockno);
+    }
+
+    for (i = 0; i < BLKFILES - 1; i++)
+        if (f[i].f_name[0] == '\0') {
+            *file = &f[i];
+            return 0;
+        }
+    *file = &f[i];
+    f = NULL;
+    return 0;
+}
+
 // Set *file to point at a free File structure in dir.  The caller is
 // responsible for filling in the File fields.
 static int
@@ -295,13 +318,12 @@ get_timestamp_from_path(const char *p)
 static int
 find_time_version(const time_t timestamp, struct File **f)
 {
-    while ((*f)->f_timestamp > timestamp) {
-        if ((*f)->f_next_file)
-            *f = (struct File*) diskaddr((*f)->f_next_file);
-        else
-            return -E_NOT_FOUND;
-    }
-    return 0;
+    while ((*f) && (*f)->f_timestamp > timestamp)
+        *f = (*f)->f_next_file;
+    if (*f)
+        return 0;
+    else
+        return -E_NOT_FOUND;
 }
 
 // Evaluate a path name, starting at the root.
@@ -393,7 +415,7 @@ file_create(const char *path, bool isdir, struct File **pf)
 	strcpy(f->f_name, name);
     file_set_size(f, 0);
     f->f_type = isdir ? FTYPE_DIR : FTYPE_REG;
-    f->f_next_file = 0;
+    f->f_next_file = NULL;
     f->f_timestamp = timestamp;
     f->f_dirty = true;
 
@@ -463,9 +485,10 @@ file_write(struct File *f, const void *buf, size_t count, off_t offset)
         // if diskbno is the same as diskbno of previous file, copy block.
         if (f->f_next_file) {
             uint32_t *next_diskbno;
-            struct File *next_file = (struct File*) diskaddr(f->f_next_file);
-            if ((r = file_get_diskbno(next_file, pos / BLKSIZE, &next_diskbno)) < 0)
+            if ((r = file_get_diskbno(f->f_next_file,
+                            pos / BLKSIZE, &next_diskbno)) < 0) {
                 return r;
+            }
             if (*diskbno == *next_diskbno) {
                 int new_blockno = copy_block(diskaddr(*diskbno));
                 if (new_blockno < 0)
@@ -488,8 +511,8 @@ int
 file_history(struct File *f, time_t *buf, size_t count, off_t offset)
 {
     time_t *buf_ptr = buf;
-    if (!f->f_dirty && f->f_next_file)
-        f = (struct File*) diskaddr(f->f_next_file);
+    if (!f->f_dirty)
+        f = f->f_next_file;
     while (f) {
         if (offset)
             offset--;
@@ -498,10 +521,7 @@ file_history(struct File *f, time_t *buf, size_t count, off_t offset)
         else
             break;
 
-        if (f->f_next_file)
-            f = (struct File*) diskaddr(f->f_next_file);
-        else
-            break;
+        f = f->f_next_file;
     }
     return buf_ptr - buf;
 }
@@ -547,15 +567,14 @@ file_flush(struct File *f, time_t timestamp)
         f->f_timestamp = timestamp;
 
         // Copy file struct: F -> F2 -> ... to F -> F' -> F2 -> ...
-        int blockno = copy_block(f);
-        if (blockno < 0)
+        struct File *next_file;
+        int r = alloc_file(&next_file);
+        if (r < 0)
             panic("out of memory in file_flush");
 
-        // Update current file
-        f->f_next_file = blockno;
-
-        // Flush copied file
-        flush_block(diskaddr(blockno));
+        memcpy(next_file, f, sizeof(struct File));
+        f->f_next_file = next_file;
+        flush_block(next_file);
     }
 
 	for (i = 0; i < (f->f_size + BLKSIZE - 1) / BLKSIZE; i++) {
